@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %} 
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Monitor de Noticias</h1>
+            <p class="text-gray-500">Inteligencia artificial aplicada a medios locales</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'sync_noticias' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i> Actualizar Ahora
+            </a>
+            <a href="{% url 'configuracion' %}" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-4 rounded-lg shadow-sm transition-colors">
+                <i class="fas fa-filter mr-2"></i> Filtros
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <p class="text-xs text-gray-400 uppercase font-bold">Noticias de Hoy</p>
+            <h3 class="text-2xl font-bold text-gray-800">{{ today_count }}</h3>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <p class="text-xs text-gray-400 uppercase font-bold">Fuentes Activas</p>
+            <h3 class="text-2xl font-bold text-gray-800">{{ sources_count }}</h3>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {% for article in articles %}
+        <div class="p-6 border-b border-gray-100 hover:bg-blue-50 transition-colors group">
+            <div class="flex gap-4 items-start">
+                {% if article.image_url %}
+                <img src="{{ article.image_url }}" class="w-24 h-24 object-cover rounded-lg hidden sm:block">
+                {% else %}
+                <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-300 hidden sm:block">
+                    <i class="fas fa-newspaper text-2xl"></i>
+                </div>
+                {% endif %}
+
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-bold text-blue-600 mb-1 block">{{ article.source.name }} &bull; {{ article.published_at|timesince }} atrás</span>
+                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href="{% url 'resumir_noticia' article.id %}" class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200">
+                                <i class="fas fa-magic mr-1"></i> Resumir con IA
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-lg font-bold text-gray-900 mb-2 leading-tight">
+                        <a href="{{ article.link }}" target="_blank" class="hover:text-blue-600">{{ article.title }}</a>
+                    </h3>
+
+                    {% if article.ai_summary %}
+                        <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 text-sm text-gray-700 mt-2">
+                            <p class="font-bold text-purple-800 text-xs mb-1"><i class="fas fa-robot"></i> Análisis LegalWatch:</p>
+                            <div class="prose prose-sm max-w-none">
+                                {{ article.ai_summary|safe }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-600 text-sm line-clamp-2">{{ article.snippet|striptags }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="p-10 text-center text-gray-500">
+            <i class="far fa-sad-tear text-4xl mb-2"></i>
+            <p>No encontré noticias con tus filtros actuales.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'core/base.html' %} 
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Agenda Legislativa</h1>
+            <p class="text-gray-500">Vistas Públicas y Sesiones</p>
+        </div>
+        
+        <div>
+            <a href="{{ feed_url }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors flex items-center gap-2">
+                <i class="fas fa-rss"></i> Sincronizar con Outlook/Google
+            </a>
+            <p class="text-xs text-gray-400 mt-1 text-right">Copia el enlace si no abre automático</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700">Próximos Eventos</h3>
+            <span class="text-xs text-gray-400">Actualizado en tiempo real</span>
+        </div>
+        
+        <div class="divide-y divide-gray-100">
+            {% for event in recent_events %}
+            <div class="p-6 hover:bg-gray-50 transition-colors flex items-start gap-6">
+                <div class="flex-shrink-0 text-center bg-blue-50 text-blue-800 rounded-xl p-3 min-w-[80px]">
+                    <span class="block text-xs font-bold uppercase tracking-wide">{{ event.date|date:"M" }}</span>
+                    <span class="block text-3xl font-extrabold">{{ event.date|date:"d" }}</span>
+                    <span class="block text-xs text-blue-400">{{ event.date|date:"Y" }}</span>
+                </div>
+                
+                <div class="flex-grow">
+                    <h4 class="text-lg font-bold text-gray-800 mb-1">{{ event.title }}</h4>
+                    <div class="flex items-center gap-4 text-sm text-gray-500 mb-2">
+                        <span><i class="far fa-clock mr-1"></i> {{ event.date|date:"h:i A" }}</span>
+                        <span><i class="fas fa-map-marker-alt mr-1"></i> {{ event.location }}</span>
+                    </div>
+                    <p class="text-gray-600">{{ event.description }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="p-12 text-center text-gray-400">
+                <i class="far fa-calendar-times text-4xl mb-3 block opacity-30"></i>
+                <p>No hay eventos programados en la agenda.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

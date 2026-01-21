@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %} 
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <a href="{% url 'comparador_home' %}" class="text-sm text-gray-500 hover:text-blue-600 mb-1 inline-block">
+                <i class="fas fa-arrow-left"></i> Volver a la lista
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800">{{ bill.number }}</h1>
+            <p class="text-gray-600 text-sm">{{ bill.title|truncatechars:100 }}</p>
+        </div>
+        <div class="text-right text-xs text-gray-400">
+            <p>Última actualización:</p>
+            <p class="font-bold">{{ bill.last_updated|date:"d M Y" }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Seleccionar Documentos</h3>
+            
+            <form method="GET" action="." class="space-y-6">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Original</label>
+                        <select name="v1" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none text-sm cursor-pointer">
+                            <option value="" disabled {% if not v1_selected %}selected{% endif %}>-- Seleccionar --</option>
+                            {% for v in versions %}
+                            <option value="{{ v.id }}" {% if v.id == v1_selected %}selected{% endif %}>
+                                📅 {{ v.created_at|date:"d/M/Y" }} - {{ v.version_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <i class="fas fa-arrow-right text-gray-300 hidden md:block"></i>
+
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-xs font-bold text-blue-600 uppercase mb-1">Enmiendas</label>
+                        <select name="v2" class="w-full p-3 bg-blue-50 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm cursor-pointer">
+                            <option value="" disabled {% if not v2_selected %}selected{% endif %}>-- Seleccionar --</option>
+                            {% for v in versions reversed %}
+                            <option value="{{ v.id }}" {% if v.id == v2_selected %}selected{% endif %}>
+                                📅 {{ v.created_at|date:"d/M/Y" }} - {{ v.version_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-center gap-4 pt-2">
+                    <button type="submit" name="ai" value="false" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg shadow transition">
+                        <i class="fas fa-exchange-alt mr-2"></i> Ver Diferencias
+                    </button>
+                    <button type="submit" name="ai" value="true" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow transition">
+                        <i class="fas fa-robot mr-2"></i> Explicar Cambios (IA)
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">
+                <i class="fas fa-cloud-upload-alt text-blue-500 mr-2"></i> Subir Archivo (Paso 3)
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">Soporta PDF (.pdf) y Word (.docx)</p>
+            
+            <form method="POST" enctype="multipart/form-data" class="space-y-3">
+                {% csrf_token %}
+                <div>
+                    <input type="text" name="version_name" placeholder="Ej: Borrador en Word" class="w-full p-2 border rounded text-sm mb-2 outline-none focus:border-blue-500" required>
+                    <input type="file" name="pdf_file" accept=".pdf, .docx" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-100 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-200 transition">
+                    <i class="fas fa-plus mr-1"></i> Añadir Versión
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    {% if diff_html or ai_analysis %}
+    <div class="space-y-8 animate-fade-in-up">
+        
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold"><i class="fas fa-code-branch mr-2"></i> Comparativa Textual</h3>
+                <div class="text-xs space-x-2">
+                    <span class="bg-red-500/20 px-2 py-1 rounded border border-red-500/50">Eliminado</span>
+                    <span class="bg-green-500/20 px-2 py-1 rounded border border-green-500/50">Añadido</span>
+                </div>
+            </div>
+            <div class="p-6 overflow-x-auto text-sm leading-relaxed diff-container">
+                {{ diff_html|safe }}
+            </div>
+        </div>
+
+        {% if ai_analysis %}
+        <div class="bg-purple-50 rounded-xl shadow-lg border border-purple-100 overflow-hidden">
+            <div class="bg-purple-600 text-white p-4">
+                <h3 class="font-bold"><i class="fas fa-brain mr-2"></i> Resumen Jurídico (IA)</h3>
+            </div>
+            <div class="p-8 text-gray-800">
+                <div class="prose prose-lg prose-purple max-w-none">
+                    {{ ai_analysis|safe }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    <style>
+        .diff-container table { width: 100%; border-collapse: collapse; }
+        .diff-container td { padding: 8px 10px; vertical-align: top; font-family: 'Courier New', monospace; font-size: 13px; }
+        .diff-container tr { border-bottom: 1px solid #e5e7eb; } 
+        .diff_header { background-color: #f9fafb; color: #9ca3af; text-align: right; user-select: none; width: 1%; border-right: 1px solid #e5e7eb; padding-right: 5px; }
+        .diff_next { display: none; }
+        .diff_add { background-color: #dcfce7; color: #15803d; } 
+        .diff_chg { background-color: #fef9c3; color: #a16207; } 
+        .diff_sub { background-color: #fee2e2; color: #b91c1c; text-decoration: line-through; } 
+    </style>
+
+</div>
+{% endblock %}

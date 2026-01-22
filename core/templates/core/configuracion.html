@@ -17,13 +17,13 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        <!-- GENERADOR DE FILTROS CON IA -->
+        <!-- GENERADOR AUTOMÁTICO CON IA -->
         <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg border border-purple-200 p-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800 flex items-center">
                     <i class="fas fa-robot text-purple-600 mr-2 text-2xl"></i> 
                     <span class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        Generador con IA
+                        Generador Automático IA
                     </span>
                 </h2>
                 <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
@@ -104,11 +104,14 @@
             </div>
         </div>
         
-        <!-- WIZARD DE CONFIGURACIÓN DE FILTROS -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <!-- GENERADOR MANUAL -->
+        <div class="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl shadow-lg border border-cyan-200 p-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                    <i class="fas fa-magic text-blue-500 mr-2"></i> Crear Nuevo Filtro
+                    <i class="fas fa-edit text-cyan-600 mr-2 text-2xl"></i> 
+                    <span class="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                        Generador Manual
+                    </span>
                 </h2>
                 <button onclick="toggleWizard()" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-question-circle text-lg"></i>
@@ -312,40 +315,48 @@
                     </button>
                 </div>
             </form>
-
-            <!-- Lista de Filtros Existentes -->
-            <div class="mt-8 pt-8 border-t border-gray-200">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-list mr-2 text-gray-500"></i> Filtros Activos
-                </h3>
-                <ul class="space-y-2 max-h-60 overflow-y-auto">
-                    {% for preset in presets %}
-                    <li class="bg-gray-50 p-3 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex-1">
-                                <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
-                                <span class="text-xs text-gray-500 truncate block">{{ preset.keywords }}</span>
-                            </div>
-                            <a href="{% url 'delete_item' 'preset' preset.id %}" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-trash"></i></a>
-                        </div>
-                        <div class="flex gap-2 text-xs">
-                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                <i class="fas fa-sliders-h mr-1"></i>{{ preset.threshold }}
-                            </span>
-                            <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded">
-                                {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
-                            </span>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="text-center text-gray-400 text-sm py-2">No tienes filtros activos.</li>
-                    {% endfor %}
-                </ul>
-            </div>
         </div>
+    </div>
 
-
-
+    <!-- FILTROS ACTIVOS - SECCIÓN COMPARTIDA -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-list-check mr-3 text-green-600"></i> 
+            Filtros Activos
+            <span class="ml-3 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">{{ presets|length }} filtro{{ presets|length|pluralize }}</span>
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for preset in presets %}
+            <div class="bg-gradient-to-br from-gray-50 to-white p-4 rounded-lg hover:shadow-md border border-gray-200 hover:border-blue-300 transition-all">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800 text-base mb-1">{{ preset.name }}</h4>
+                        <p class="text-xs text-gray-500 line-clamp-2">{{ preset.keywords }}</p>
+                    </div>
+                    <a href="{% url 'delete_item' 'preset' preset.id %}" 
+                       class="text-gray-300 hover:text-red-500 transition-colors p-2 ml-2">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </div>
+                <div class="flex gap-2 text-xs">
+                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-semibold">
+                        <i class="fas fa-sliders-h mr-1"></i>{{ preset.threshold }}
+                    </span>
+                    <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded-full font-semibold">
+                        <i class="fas {% if preset.is_active %}fa-check-circle{% else %}fa-times-circle{% endif %} mr-1"></i>
+                        {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
+                    </span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 font-semibold">No tienes filtros activos</p>
+                <p class="text-sm text-gray-400 mt-2">Crea tu primer filtro usando el Generador Automático o Manual</p>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 
@@ -426,11 +437,13 @@ async function generateWithAI() {
     document.getElementById('aiResults').classList.add('hidden');
     
     try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
         const response = await fetch('/api/generate-keywords/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ topics: topicsInput })
         });
@@ -442,12 +455,14 @@ async function generateWithAI() {
             displayAIResults(data.results);
         } else {
             alert('Error: ' + data.error);
+            document.getElementById('aiLoading').classList.add('hidden');
         }
     } catch (error) {
+        console.error('Error completo:', error);
         alert('Error generando keywords: ' + error.message);
+        document.getElementById('aiLoading').classList.add('hidden');
     } finally {
         document.getElementById('generateBtn').disabled = false;
-        document.getElementById('aiLoading').classList.add('hidden');
     }
 }
 
@@ -493,6 +508,8 @@ async function saveAllPresets() {
     let savedCount = 0;
     let errors = [];
     
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
     for (const textarea of textareas) {
         const topic = textarea.id.replace('keywords-', '').replace(/-/g, ' ');
         const keywords = textarea.value.trim();
@@ -506,12 +523,10 @@ async function saveAllPresets() {
             formData.append('preset_keywords', keywords);
             formData.append('preset_threshold', '15');
             formData.append('preset_fields', 'title,description');
+            formData.append('csrfmiddlewaretoken', csrfToken);
             
             const response = await fetch('/configuracion/', {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
                 body: formData
             });
             
@@ -521,6 +536,7 @@ async function saveAllPresets() {
                 errors.push(topic);
             }
         } catch (error) {
+            console.error('Error guardando preset:', error);
             errors.push(topic);
         }
     }

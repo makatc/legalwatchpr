@@ -1,7 +1,7 @@
 {% extends 'core/base.html' %} 
 
 {% block content %}
-<div class="p-6 bg-gray-50 min-h-screen">
+<div class="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
     
     <div class="mb-8 flex justify-between items-center">
         <div>
@@ -17,68 +17,244 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                <i class="fas fa-newspaper text-blue-500 mr-2"></i> Filtros de Noticias
-            </h2>
-            
-            <form method="POST" class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+        <!-- WIZARD DE CONFIGURACIÓN DE FILTROS -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-magic text-blue-500 mr-2"></i> Crear Nuevo Filtro
+                </h2>
+                <button onclick="toggleWizard()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-question-circle text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Barra de Progreso -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-gray-600">Paso <span id="currentStepNum">1</span> de 4</span>
+                    <span class="text-xs text-gray-500"><span id="progressPercent">25</span>% completado</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+                </div>
+            </div>
+
+            <form id="wizardForm" method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="add_preset" value="true">
-                <div class="space-y-3">
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase">Nombre del Tema</label>
-                        <input type="text" name="preset_name" placeholder="Ej: Energía Renovable" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase">Palabras Clave (separadas por coma)</label>
-                        <textarea name="preset_keywords" rows="2" placeholder="luma, energia electrica, paneles solares..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">Threshold (0-100)</label>
-                            <input type="number" name="preset_threshold" value="15" min="0" max="100" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <p class="text-xs text-gray-400 mt-1">Score mínimo (15-20 recomendado)</p>
+                <input type="hidden" id="finalThreshold" name="preset_threshold" value="15">
+                <input type="hidden" name="preset_fields" value="title,description">
+
+                <!-- Paso 1: Bienvenida -->
+                <div id="step1" class="wizard-step">
+                    <div class="text-center mb-6">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                            <i class="fas fa-rocket text-blue-600 text-2xl"></i>
                         </div>
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">Campos a Analizar</label>
-                            <input type="text" name="preset_fields" value="title,description" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <p class="text-xs text-gray-400 mt-1">title, description</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido!</h3>
+                        <p class="text-gray-600">Vamos a crear un filtro personalizado para tus noticias</p>
+                    </div>
+                    
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+                        <div class="flex">
+                            <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="font-bold text-gray-800 mb-1">¿Qué es un filtro?</h4>
+                                <p class="text-sm text-gray-700">Un filtro te permite capturar automáticamente noticias sobre temas específicos. Por ejemplo: "Energía Renovable", "Educación", "Salud Pública", etc.</p>
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-blue-700 shadow-sm">
-                        <i class="fas fa-plus mr-1"></i> Crear Filtro
+
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-4 rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-lightbulb text-green-600 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-1">Ejemplo práctico</h4>
+                                <p class="text-sm text-gray-700">Si creas un filtro llamado <strong>"Legislación"</strong> con palabras como <strong>"senado, cámara, proyecto de ley"</strong>, el sistema solo te mostrará noticias relacionadas con esos temas.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 2: Nombre del Tema -->
+                <div id="step2" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full mr-3">
+                                <i class="fas fa-tag text-blue-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Nombre del Filtro</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Dale un nombre descriptivo a tu filtro. Este será el título que verás en tu panel.</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fas fa-pen mr-1"></i> ¿Cómo lo llamarás?
+                        </label>
+                        <input type="text" 
+                               name="preset_name" 
+                               id="presetName"
+                               placeholder="Ej: Política y Legislación" 
+                               class="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                               required>
+                    </div>
+
+                    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-star text-amber-500 mr-2"></i> Ejemplos sugeridos:
+                        </h4>
+                        <ul class="text-sm text-gray-700 space-y-1">
+                            <li>• <strong>Política y Gobierno</strong> - Para noticias gubernamentales</li>
+                            <li>• <strong>Economía y Negocios</strong> - Para temas comerciales</li>
+                            <li>• <strong>Educación</strong> - Para noticias del sector educativo</li>
+                            <li>• <strong>Salud Pública</strong> - Para temas de salud</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Paso 3: Palabras Clave -->
+                <div id="step3" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-full mr-3">
+                                <i class="fas fa-key text-purple-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Palabras Clave</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Escribe las palabras o frases que deben aparecer en las noticias. Sepáralas con comas.</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fas fa-search mr-1"></i> Palabras que quieres monitorear
+                        </label>
+                        <textarea name="preset_keywords" 
+                                  id="presetKeywords"
+                                  rows="4" 
+                                  placeholder="Ej: legislatura, senado, cámara, proyecto de ley, gobernador..."
+                                  class="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                                  required></textarea>
+                        <p class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle mr-1"></i> Separa cada palabra con una coma</p>
+                    </div>
+
+                    <div class="bg-purple-50 border-l-4 border-purple-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-brain text-purple-500 mr-2"></i> Cómo funciona:
+                        </h4>
+                        <p class="text-sm text-gray-700 mb-2">El sistema usa <strong>inteligencia artificial</strong> para analizar las noticias. No necesitas poner todas las variaciones de una palabra.</p>
+                        <p class="text-sm text-gray-700"><strong>Ejemplo:</strong> Si pones "legislatura", también encontrará noticias con "legislativo", "legisladores", etc.</p>
+                    </div>
+                </div>
+
+                <!-- Paso 4: Sensibilidad (Threshold) -->
+                <div id="step4" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full mr-3">
+                                <i class="fas fa-sliders-h text-green-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Nivel de Sensibilidad</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Ajusta qué tan estricto será el filtro al seleccionar noticias.</p>
+                    </div>
+
+                    <div class="mb-8">
+                        <label class="block text-sm font-bold text-gray-700 mb-4">
+                            <i class="fas fa-adjust mr-1"></i> Sensibilidad: <span id="thresholdLabel" class="text-blue-600">Media (15)</span>
+                        </label>
+                        
+                        <input type="range" 
+                               id="thresholdSlider" 
+                               min="5" 
+                               max="50" 
+                               value="15" 
+                               class="w-full h-3 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg appearance-none cursor-pointer slider"
+                               oninput="updateThreshold(this.value)">
+                        
+                        <div class="flex justify-between text-xs text-gray-500 mt-2">
+                            <span><i class="fas fa-filter mr-1"></i> Más Inclusivo</span>
+                            <span><i class="fas fa-search mr-1"></i> Más Selectivo</span>
+                        </div>
+                    </div>
+
+                    <div id="thresholdInfo" class="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i> Sensibilidad Media (Recomendado)
+                        </h4>
+                        <p class="text-sm text-gray-700">Este nivel es ideal para abogados. Captura noticias relevantes sin perder información importante.</p>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <div class="text-2xl mb-1">🟢</div>
+                            <p class="text-xs font-semibold text-gray-700">Alta (5-10)</p>
+                            <p class="text-xs text-gray-500">Más noticias</p>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-lg border-2 border-yellow-300">
+                            <div class="text-2xl mb-1">🟡</div>
+                            <p class="text-xs font-semibold text-gray-700">Media (15-25)</p>
+                            <p class="text-xs text-gray-500">Equilibrado</p>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-lg">
+                            <div class="text-2xl mb-1">🔴</div>
+                            <p class="text-xs font-semibold text-gray-700">Baja (30-50)</p>
+                            <p class="text-xs text-gray-500">Solo muy relevantes</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Navegación -->
+                <div class="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                    <button type="button" 
+                            id="prevBtn" 
+                            onclick="changeStep(-1)" 
+                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors hidden">
+                        <i class="fas fa-arrow-left mr-2"></i> Anterior
+                    </button>
+                    <button type="button" 
+                            id="nextBtn" 
+                            onclick="changeStep(1)" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors ml-auto">
+                        Siguiente <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                    <button type="submit" 
+                            id="submitBtn" 
+                            class="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors ml-auto hidden">
+                        <i class="fas fa-check mr-2"></i> Crear Filtro
                     </button>
                 </div>
             </form>
 
-            <ul class="space-y-2 max-h-60 overflow-y-auto">
-                {% for preset in presets %}
-                <li class="bg-gray-50 p-3 rounded-lg group hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex-1">
-                            <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
-                            <span class="text-xs text-gray-500 truncate block max-w-[200px]">{{ preset.keywords }}</span>
+            <!-- Lista de Filtros Existentes -->
+            <div class="mt-8 pt-8 border-t border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-list mr-2 text-gray-500"></i> Filtros Activos
+                </h3>
+                <ul class="space-y-2 max-h-60 overflow-y-auto">
+                    {% for preset in presets %}
+                    <li class="bg-gray-50 p-3 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
+                                <span class="text-xs text-gray-500 truncate block">{{ preset.keywords }}</span>
+                            </div>
+                            <a href="{% url 'delete_item' 'preset' preset.id %}" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-trash"></i></a>
                         </div>
-                        <a href="{% url 'delete_item' 'preset' preset.id %}" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-trash"></i></a>
-                    </div>
-                    <div class="flex gap-2 text-xs">
-                        <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                            <i class="fas fa-sliders-h mr-1"></i>Threshold: {{ preset.threshold }}
-                        </span>
-                        <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                            <i class="fas fa-filter mr-1"></i>{{ preset.fields_to_analyze }}
-                        </span>
-                        <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded">
-                            <i class="fas {% if preset.is_active %}fa-check-circle{% else %}fa-times-circle{% endif %} mr-1"></i>
-                            {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
-                        </span>
-                    </div>
-                </li>
-                {% empty %}
-                <li class="text-center text-gray-400 text-sm py-2">No tienes filtros activos.</li>
-                {% endfor %}
-            </ul>
+                        <div class="flex gap-2 text-xs">
+                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                <i class="fas fa-sliders-h mr-1"></i>{{ preset.threshold }}
+                            </span>
+                            <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded">
+                                {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
+                            </span>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-center text-gray-400 text-sm py-2">No tienes filtros activos.</li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -180,4 +356,128 @@
 
     </div>
 </div>
+
+<style>
+.wizard-step {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slider personalizado */
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: none;
+}
+</style>
+
+<script>
+let currentStep = 1;
+const totalSteps = 4;
+
+function changeStep(direction) {
+    // Validar campos antes de avanzar
+    if (direction === 1) {
+        if (currentStep === 2 && !document.getElementById('presetName').value) {
+            alert('Por favor ingresa un nombre para el filtro');
+            return;
+        }
+        if (currentStep === 3 && !document.getElementById('presetKeywords').value) {
+            alert('Por favor ingresa al menos una palabra clave');
+            return;
+        }
+    }
+    
+    // Ocultar paso actual
+    document.getElementById(`step${currentStep}`).classList.add('hidden');
+    
+    // Cambiar número de paso
+    currentStep += direction;
+    
+    // Mostrar nuevo paso
+    document.getElementById(`step${currentStep}`).classList.remove('hidden');
+    
+    // Actualizar barra de progreso
+    const progress = (currentStep / totalSteps) * 100;
+    document.getElementById('progressBar').style.width = progress + '%';
+    document.getElementById('progressPercent').textContent = Math.round(progress);
+    document.getElementById('currentStepNum').textContent = currentStep;
+    
+    // Mostrar/ocultar botones
+    document.getElementById('prevBtn').classList.toggle('hidden', currentStep === 1);
+    document.getElementById('nextBtn').classList.toggle('hidden', currentStep === totalSteps);
+    document.getElementById('submitBtn').classList.toggle('hidden', currentStep !== totalSteps);
+}
+
+function updateThreshold(value) {
+    document.getElementById('finalThreshold').value = value;
+    
+    let label = '';
+    let info = '';
+    let colorClass = '';
+    
+    if (value >= 5 && value <= 10) {
+        label = `Alta (${value})`;
+        info = {
+            title: 'Sensibilidad Alta',
+            desc: 'Captura la mayor cantidad de noticias posibles. Útil si no quieres perderte nada, aunque pueden aparecer algunas menos relevantes.',
+            icon: 'check-circle',
+            color: 'green'
+        };
+    } else if (value >= 11 && value <= 25) {
+        label = `Media (${value})`;
+        info = {
+            title: 'Sensibilidad Media (Recomendado)',
+            desc: 'Este nivel es ideal para abogados. Captura noticias relevantes sin perder información importante. Equilibrio perfecto entre cantidad y calidad.',
+            icon: 'check-circle',
+            color: 'green'
+        };
+    } else {
+        label = `Baja (${value})`;
+        info = {
+            title: 'Sensibilidad Baja',
+            desc: 'Solo captura noticias muy relevantes. Útil si quieres ver únicamente las noticias más importantes y específicas.',
+            icon: 'exclamation-circle',
+            color: 'red'
+        };
+    }
+    
+    document.getElementById('thresholdLabel').textContent = label;
+    document.getElementById('thresholdInfo').className = `bg-${info.color}-50 border-l-4 border-${info.color}-400 p-4 rounded-r-lg`;
+    document.getElementById('thresholdInfo').innerHTML = `
+        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+            <i class="fas fa-${info.icon} text-${info.color}-500 mr-2"></i> ${info.title}
+        </h4>
+        <p class="text-sm text-gray-700">${info.desc}</p>
+    `;
+}
+
+function toggleWizard() {
+    alert('💡 Ayuda del Wizard\\n\\nEste asistente te guiará paso a paso para crear un filtro personalizado de noticias.\\n\\n1. Dale un nombre descriptivo\\n2. Agrega palabras clave\\n3. Ajusta la sensibilidad\\n4. ¡Listo!');
+}
+</script>
 {% endblock %}

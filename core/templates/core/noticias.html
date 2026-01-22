@@ -96,6 +96,16 @@
                                     <i class="far fa-clock mr-1"></i>
                                     {{ article.published_at|timesince }} atrás
                                 </span>
+                                {% if article.relevance_score > 0 %}
+                                <span class="inline-flex items-center text-xs font-bold 
+                                    {% if article.relevance_score >= 70 %}text-green-700 bg-green-100
+                                    {% elif article.relevance_score >= 40 %}text-yellow-700 bg-yellow-100
+                                    {% else %}text-gray-700 bg-gray-100{% endif %}
+                                    px-2.5 py-1 rounded-full">
+                                    <i class="fas fa-chart-line mr-1.5"></i>
+                                    Score: {{ article.relevance_score|floatformat:0 }}
+                                </span>
+                                {% endif %}
                             </div>
                             
                             <!-- Title -->

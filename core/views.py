@@ -122,8 +122,25 @@ def configuracion(request):
         elif 'add_preset' in request.POST:
             name = request.POST.get('preset_name', '').strip()
             keywords = request.POST.get('preset_keywords', '').strip()
+            threshold = request.POST.get('preset_threshold', '30')
+            fields = request.POST.get('preset_fields', 'title,description').strip()
+            
             if name and keywords:
-                NewsPreset.objects.update_or_create(name=name, defaults={'keywords': keywords, 'is_active': True})
+                try:
+                    threshold_int = int(threshold)
+                    threshold_int = max(0, min(100, threshold_int))  # Limitar entre 0-100
+                except:
+                    threshold_int = 30
+                
+                NewsPreset.objects.update_or_create(
+                    name=name,
+                    defaults={
+                        'keywords': keywords,
+                        'threshold': threshold_int,
+                        'fields_to_analyze': fields,
+                        'is_active': True
+                    }
+                )
         return redirect('configuracion')
 
     context = {

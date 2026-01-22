@@ -27,6 +27,18 @@
                         <label class="text-xs font-bold text-gray-500 uppercase">Palabras Clave (separadas por coma)</label>
                         <textarea name="preset_keywords" rows="2" placeholder="luma, energia electrica, paneles solares..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                     </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-500 uppercase">Threshold (0-100)</label>
+                            <input type="number" name="preset_threshold" value="30" min="0" max="100" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <p class="text-xs text-gray-400 mt-1">Score mínimo de relevancia</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-500 uppercase">Campos a Analizar</label>
+                            <input type="text" name="preset_fields" value="title,description" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <p class="text-xs text-gray-400 mt-1">title, description</p>
+                        </div>
+                    </div>
                     <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-blue-700 shadow-sm">
                         <i class="fas fa-plus mr-1"></i> Crear Filtro
                     </button>
@@ -35,12 +47,26 @@
 
             <ul class="space-y-2 max-h-60 overflow-y-auto">
                 {% for preset in presets %}
-                <li class="flex justify-between items-center bg-gray-50 p-3 rounded-lg group hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                    <div>
-                        <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
-                        <span class="text-xs text-gray-500 truncate block max-w-[200px]">{{ preset.keywords }}</span>
+                <li class="bg-gray-50 p-3 rounded-lg group hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
+                            <span class="text-xs text-gray-500 truncate block max-w-[200px]">{{ preset.keywords }}</span>
+                        </div>
+                        <a href="{% url 'delete_item' 'preset' preset.id %}" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-trash"></i></a>
                     </div>
-                    <a href="{% url 'delete_item' 'preset' preset.id %}" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-trash"></i></a>
+                    <div class="flex gap-2 text-xs">
+                        <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                            <i class="fas fa-sliders-h mr-1"></i>Threshold: {{ preset.threshold }}
+                        </span>
+                        <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            <i class="fas fa-filter mr-1"></i>{{ preset.fields_to_analyze }}
+                        </span>
+                        <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded">
+                            <i class="fas {% if preset.is_active %}fa-check-circle{% else %}fa-times-circle{% endif %} mr-1"></i>
+                            {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
+                        </span>
+                    </div>
                 </li>
                 {% empty %}
                 <li class="text-center text-gray-400 text-sm py-2">No tienes filtros activos.</li>

@@ -2,6 +2,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+# Versión de la aplicación
+VERSION = '1.1'
+
 # Cargar variables de entorno desde .env
 load_dotenv()
 

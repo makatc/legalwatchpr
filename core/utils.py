@@ -10,6 +10,7 @@ import time
 import datetime
 import difflib
 import urllib3
+from rank_bm25 import BM25Okapi
 
 # Desactivar las advertencias molestas de seguridad SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -82,43 +83,51 @@ def normalize_text(text):
 
 def calculate_relevance_score(text, keywords, fields_to_analyze="title,description"):
     """
-    Calcula un score de relevancia (0-100) basado en coincidencias de keywords.
+    Calcula un score de relevancia (0-100) usando BM25 (Best Matching 25).
+    BM25 es un algoritmo de ranking que evalúa relevancia semántica.
     
     Args:
         text: Texto a analizar
         keywords: Lista de palabras clave
-        fields_to_analyze: Campos considerados (no usado en scoring simple)
+        fields_to_analyze: Campos considerados (para futura expansión)
     
     Retorna: Score entre 0-100
     """
     if not text or not keywords:
         return 0.0
     
+    # Normalizar texto y tokenizar
     text_normalized = normalize_text(text)
-    text_words = set(text_normalized.split())
+    text_tokens = text_normalized.split()
     
-    total_keywords = len(keywords)
-    if total_keywords == 0:
+    if not text_tokens:
         return 0.0
     
-    # Contar coincidencias
-    matches = 0
+    # Crear corpus con el texto (BM25 necesita una lista de documentos)
+    corpus = [text_tokens]
+    
+    # Inicializar BM25
+    bm25 = BM25Okapi(corpus)
+    
+    # Preparar query con las keywords
+    query_tokens = []
     for keyword in keywords:
         keyword_normalized = normalize_text(keyword)
-        
-        # Coincidencia exacta de frase
-        if keyword_normalized in text_normalized:
-            matches += 2  # Peso doble para coincidencias exactas
-        # Coincidencia de palabra individual
-        elif keyword_normalized in text_words:
-            matches += 1
+        query_tokens.extend(keyword_normalized.split())
     
-    # Calcular score como porcentaje
-    # Máximo posible: total_keywords * 2 (todas coincidencias exactas)
-    max_possible = total_keywords * 2
-    score = (matches / max_possible) * 100
+    if not query_tokens:
+        return 0.0
     
-    return min(100.0, score)  # Limitar a 100
+    # Calcular score BM25
+    scores = bm25.get_scores(query_tokens)
+    raw_score = scores[0] if len(scores) > 0 else 0.0
+    
+    # Normalizar a escala 0-100
+    # BM25 scores típicamente van de 0 a ~10 para textos cortos
+    # Usamos una función de mapeo suave
+    normalized_score = min(100.0, (raw_score / 5.0) * 100)
+    
+    return normalized_score
 
 def scrape_full_text(url):
     try:

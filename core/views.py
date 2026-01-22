@@ -156,6 +156,50 @@ def configuracion(request):
     return render(request, 'core/configuracion.html', context)
 
 @login_required
+def generate_keywords_ai(request):
+    """Endpoint AJAX para generar keywords con IA a partir de temas."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        import json
+        from .utils import generate_keywords_for_topics
+        
+        data = json.loads(request.body)
+        topics_text = data.get('topics', '').strip()
+        
+        if not topics_text:
+            return JsonResponse({'success': False, 'error': 'No se proporcionaron temas'}, status=400)
+        
+        # Separar temas por línea y filtrar vacíos
+        topics_list = [t.strip() for t in topics_text.split('\n') if t.strip()]
+        
+        if len(topics_list) > 10:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Máximo 10 temas permitidos. Recibidos: {len(topics_list)}'
+            }, status=400)
+        
+        # Generar keywords con IA
+        keywords_dict = generate_keywords_for_topics(topics_list)
+        
+        if not keywords_dict:
+            return JsonResponse({
+                'success': False,
+                'error': 'No se pudieron generar keywords. Intenta nuevamente.'
+            }, status=500)
+        
+        return JsonResponse({
+            'success': True,
+            'results': keywords_dict
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
 def delete_item(request, item_type, item_id):
     model_map = {'keyword': Keyword, 'measure': MonitoredMeasure, 'commission': MonitoredCommission, 'preset': NewsPreset}
     if item_type in model_map:

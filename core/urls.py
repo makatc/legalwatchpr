@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/presets/add/', views.api_add_preset, name='api_add_preset'),
     path('api/presets/<int:preset_id>/delete/', views.api_delete_preset, name='api_delete_preset'),
     path('api/presets/<int:preset_id>/toggle/', views.api_toggle_preset, name='api_toggle_preset'),
+    path('api/generate-keywords/', views.generate_keywords_ai, name='generate_keywords_ai'),
 ]

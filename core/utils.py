@@ -157,6 +157,87 @@ def get_image_from_entry(entry):
     if 'media_thumbnail' in entry: return entry.media_thumbnail[0]['url']
     return None
 
+def generate_keywords_for_topics(topics_list):
+    """
+    Genera keywords/frases relevantes para múltiples temas usando IA.
+    
+    Args:
+        topics_list: Lista de temas (máximo 10)
+    
+    Retorna: Dict con tema como key y lista de keywords como value
+    """
+    try:
+        # Limitar a 10 temas
+        topics_list = topics_list[:10]
+        
+        if not topics_list:
+            return {}
+        
+        # Obtener modelo de IA
+        available_model = None
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    available_model = m.name
+                    break 
+        except: pass
+        
+        if not available_model: 
+            available_model = 'models/gemini-1.5-flash'
+        
+        model = genai.GenerativeModel(available_model)
+        
+        # Crear lista de temas para el prompt
+        topics_formatted = "\n".join([f"{i+1}. {topic}" for i, topic in enumerate(topics_list)])
+        
+        prompt = f"""
+Eres un asistente especializado en monitoreo de noticias para abogados en Puerto Rico.
+
+TAREA: Para cada tema listado, genera entre 10-15 términos de búsqueda relevantes. 
+Incluye tanto palabras individuales como frases específicas (2-4 palabras).
+
+CONTEXTO: Puerto Rico - Gobierno, legislación, política, economía, salud, educación.
+
+TEMAS:
+{topics_formatted}
+
+FORMATO DE RESPUESTA (CRÍTICO - NO LO CAMBIES):
+Responde SOLO con JSON válido, sin texto adicional, sin markdown, sin explicaciones:
+
+{{
+  "Tema 1": ["término 1", "término 2", "frase específica", ...],
+  "Tema 2": ["término 1", "término 2", "frase específica", ...],
+  ...
+}}
+
+REGLAS:
+1. Usa los nombres exactos de los temas como keys
+2. 10-15 términos por tema
+3. Mezcla palabras y frases (2-4 palabras)
+4. Enfócate en términos legales/gubernamentales de Puerto Rico
+5. Incluye variaciones (ej: "UPR", "Universidad de Puerto Rico")
+6. Solo JSON, sin texto antes o después
+
+EJEMPLO:
+{{"Educación Pública": ["Departamento de Educación", "reforma educativa", "UPR", "Universidad de Puerto Rico", "presupuesto escolar", "maestros", "matrícula", "sistema educativo", "currículo", "evaluación docente", "estudiantes", "colegios", "secretario educación"]}}
+"""
+        
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Limpiar respuesta (quitar markdown si existe)
+        response_text = response_text.replace("```json", "").replace("```", "").strip()
+        
+        # Parsear JSON
+        import json
+        keywords_dict = json.loads(response_text)
+        
+        return keywords_dict
+        
+    except Exception as e:
+        print(f"Error generando keywords con IA: {e}")
+        return {}
+
 # --- FUNCIONES DE SINCRONIZACIÓN RSS ---
 
 def get_active_sources():

@@ -17,6 +17,93 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
+        <!-- GENERADOR DE FILTROS CON IA -->
+        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg border border-purple-200 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-robot text-purple-600 mr-2 text-2xl"></i> 
+                    <span class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Generador con IA
+                    </span>
+                </h2>
+                <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                    ✨ NUEVO
+                </span>
+            </div>
+
+            <div class="bg-white rounded-lg border-2 border-purple-200 p-5 mb-6">
+                <div class="flex items-start mb-4">
+                    <i class="fas fa-lightbulb text-yellow-500 text-2xl mr-3 mt-1"></i>
+                    <div>
+                        <h3 class="font-bold text-gray-800 mb-2">¿Cómo funciona?</h3>
+                        <p class="text-sm text-gray-600 mb-3">Ingresa hasta <strong>10 temas</strong> (uno por línea) y la IA generará automáticamente 10-15 palabras clave relevantes para cada uno.</p>
+                        <div class="bg-purple-50 rounded p-3 text-xs text-gray-700">
+                            <strong>Ejemplo:</strong><br>
+                            • Educación Pública<br>
+                            • Junta de Control Fiscal<br>
+                            • Salud<br>
+                            • Energía Renovable
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    <i class="fas fa-list-ul mr-1"></i> Ingresa tus temas (máximo 10)
+                </label>
+                <textarea id="aiTopicsInput" 
+                          rows="8" 
+                          placeholder="Educación Pública&#10;Junta de Control Fiscal&#10;Salud&#10;Energía Renovable&#10;Seguridad Pública"
+                          class="w-full p-4 border-2 border-purple-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all resize-none font-mono"></textarea>
+                <div class="flex justify-between mt-2">
+                    <span id="topicCounter" class="text-xs text-gray-500">0 temas ingresados</span>
+                    <span class="text-xs text-purple-600 font-semibold">Máximo: 10</span>
+                </div>
+            </div>
+
+            <button onclick="generateWithAI()" 
+                    id="generateBtn"
+                    class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-xl transition-all duration-200 flex items-center justify-center">
+                <i class="fas fa-magic mr-2 animate-pulse"></i>
+                Generar Keywords con IA
+            </button>
+
+            <!-- Área de Resultados -->
+            <div id="aiResults" class="mt-6 hidden">
+                <div class="bg-white rounded-lg border-2 border-green-200 p-5">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                        Resultados Generados
+                    </h3>
+                    <div id="aiResultsContent" class="space-y-4 max-h-96 overflow-y-auto">
+                        <!-- Aquí se insertarán los resultados dinámicamente -->
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex gap-3">
+                        <button onclick="saveAllPresets()" 
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i>
+                            Guardar Todos
+                        </button>
+                        <button onclick="cancelAIResults()" 
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 rounded-lg transition-colors">
+                            <i class="fas fa-times mr-2"></i>
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="aiLoading" class="mt-6 hidden">
+                <div class="bg-white rounded-lg border-2 border-purple-200 p-8 text-center">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent mb-4"></div>
+                    <p class="text-gray-700 font-semibold">Generando keywords con IA...</p>
+                    <p class="text-sm text-gray-500 mt-2">Esto puede tomar unos segundos</p>
+                </div>
+            </div>
+        </div>
+        
         <!-- WIZARD DE CONFIGURACIÓN DE FILTROS -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
             <div class="flex items-center justify-between mb-6">
@@ -301,6 +388,176 @@ input[type="range"]::-moz-range-thumb {
 </style>
 
 <script>
+// ========== GENERADOR CON IA ==========
+let aiGeneratedResults = {};
+
+// Contador de temas
+document.getElementById('aiTopicsInput').addEventListener('input', function() {
+    const topics = this.value.trim().split('\n').filter(t => t.trim());
+    const counter = document.getElementById('topicCounter');
+    counter.textContent = `${topics.length} tema${topics.length !== 1 ? 's' : ''} ingresado${topics.length !== 1 ? 's' : ''}`;
+    
+    if (topics.length > 10) {
+        counter.classList.add('text-red-500', 'font-bold');
+        counter.textContent = `⚠️ ${topics.length} temas - Máximo 10 permitido`;
+    } else {
+        counter.classList.remove('text-red-500', 'font-bold');
+    }
+});
+
+async function generateWithAI() {
+    const topicsInput = document.getElementById('aiTopicsInput').value.trim();
+    
+    if (!topicsInput) {
+        alert('Por favor ingresa al menos un tema');
+        return;
+    }
+    
+    const topics = topicsInput.split('\n').filter(t => t.trim());
+    
+    if (topics.length > 10) {
+        alert('Máximo 10 temas permitidos. Actualmente tienes: ' + topics.length);
+        return;
+    }
+    
+    // Mostrar loading
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('aiLoading').classList.remove('hidden');
+    document.getElementById('aiResults').classList.add('hidden');
+    
+    try {
+        const response = await fetch('/api/generate-keywords/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ topics: topicsInput })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            aiGeneratedResults = data.results;
+            displayAIResults(data.results);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error generando keywords: ' + error.message);
+    } finally {
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('aiLoading').classList.add('hidden');
+    }
+}
+
+function displayAIResults(results) {
+    const container = document.getElementById('aiResultsContent');
+    container.innerHTML = '';
+    
+    for (const [topic, keywords] of Object.entries(results)) {
+        const keywordsText = keywords.join(', ');
+        
+        const resultCard = document.createElement('div');
+        resultCard.className = 'bg-gray-50 border border-gray-200 rounded-lg p-4';
+        resultCard.innerHTML = `
+            <div class="flex items-start justify-between mb-2">
+                <h4 class="font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-tag text-purple-500 mr-2"></i>
+                    ${topic}
+                </h4>
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                    ${keywords.length} términos
+                </span>
+            </div>
+            <textarea 
+                id="keywords-${topic.replace(/\s+/g, '-')}" 
+                class="w-full p-3 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                rows="3"
+            >${keywordsText}</textarea>
+            <div class="mt-2 flex items-center text-xs text-gray-500">
+                <i class="fas fa-edit mr-1"></i>
+                Puedes editar las palabras antes de guardar
+            </div>
+        `;
+        container.appendChild(resultCard);
+    }
+    
+    document.getElementById('aiResults').classList.remove('hidden');
+}
+
+async function saveAllPresets() {
+    const container = document.getElementById('aiResultsContent');
+    const textareas = container.querySelectorAll('textarea');
+    
+    let savedCount = 0;
+    let errors = [];
+    
+    for (const textarea of textareas) {
+        const topic = textarea.id.replace('keywords-', '').replace(/-/g, ' ');
+        const keywords = textarea.value.trim();
+        
+        if (!keywords) continue;
+        
+        try {
+            const formData = new FormData();
+            formData.append('add_preset', 'true');
+            formData.append('preset_name', topic);
+            formData.append('preset_keywords', keywords);
+            formData.append('preset_threshold', '15');
+            formData.append('preset_fields', 'title,description');
+            
+            const response = await fetch('/configuracion/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            if (response.ok) {
+                savedCount++;
+            } else {
+                errors.push(topic);
+            }
+        } catch (error) {
+            errors.push(topic);
+        }
+    }
+    
+    if (errors.length > 0) {
+        alert(`Guardados: ${savedCount}\nErrores en: ${errors.join(', ')}`);
+    } else {
+        alert(`✅ ${savedCount} filtros guardados exitosamente`);
+    }
+    
+    // Recargar página para mostrar nuevos filtros
+    window.location.reload();
+}
+
+function cancelAIResults() {
+    document.getElementById('aiResults').classList.add('hidden');
+    document.getElementById('aiTopicsInput').value = '';
+    document.getElementById('topicCounter').textContent = '0 temas ingresados';
+    aiGeneratedResults = {};
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// ========== WIZARD EXISTENTE ==========
 let currentStep = 1;
 const totalSteps = 4;
 

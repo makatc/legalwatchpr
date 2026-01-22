@@ -58,7 +58,9 @@ def noticias(request):
     context = {
         'articles': articles[:100],
         'sources_count': NewsSource.objects.count(),
-        'today_count': Article.objects.filter(published_at__date=datetime.date.today()).count()
+        'today_count': Article.objects.filter(published_at__date=datetime.date.today()).count(),
+        'presets': NewsPreset.objects.all(),
+        'sources': NewsSource.objects.all()
     }
     return render(request, 'core/noticias.html', context)
 

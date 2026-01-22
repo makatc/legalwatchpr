@@ -11,12 +11,13 @@ import datetime
 import difflib
 import urllib3
 from rank_bm25 import BM25Okapi
+import json
 
 # Desactivar las advertencias molestas de seguridad SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- TU CLAVE DE GOOGLE ---
-GOOGLE_API_KEY = "AIzaSyBl561zpgqQlziXDPvy6yvrBHJ_-GQ7_-M"
+GOOGLE_API_KEY = "AIzaSyBCJi-ntoxQCvnnasb2jBuXj4DK0djajnQ"
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -229,7 +230,6 @@ EJEMPLO:
         response_text = response_text.replace("```json", "").replace("```", "").strip()
         
         # Parsear JSON
-        import json
         keywords_dict = json.loads(response_text)
         
         return keywords_dict

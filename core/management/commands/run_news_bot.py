@@ -1,28 +1,59 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from core.models import Article
-from core.utils import fetch_latest_news
+from core.utils import sync_all_rss_sources, clean_invalid_articles
 import datetime
 
 class Command(BaseCommand):
-    help = 'Borra noticias viejas y descarga nuevas automáticamnte'
+    help = 'Sincroniza noticias RSS desde fuentes activas con filtros por presets'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--max-entries',
+            type=int,
+            default=10,
+            help='Número máximo de entradas a procesar por fuente (default: 10)'
+        )
+        parser.add_argument(
+            '--no-clean',
+            action='store_true',
+            help='No limpiar artículos inválidos antes de sincronizar'
+        )
+        parser.add_argument(
+            '--delete-old',
+            type=int,
+            help='Eliminar artículos con más de N días (ej: 7)'
+        )
 
     def handle(self, *args, **options):
-        self.stdout.write("--- INICIANDO ROBOT DE NOTICIAS ---")
+        self.stdout.write(self.style.SUCCESS("=== ROBOT DE NOTICIAS RSS ===\n"))
 
-        # 1. BORRADO DE LIMPIEZA (7 DÍAS)
-        # Calculamos la fecha de hace 7 días
-        limite = timezone.now() - datetime.timedelta(days=7)
-        # Borramos todo lo que sea anterior a esa fecha
-        deleted_count, _ = Article.objects.filter(published_at__lt=limite).delete()
-        self.stdout.write(f"1. LIMPIEZA: Se borraron {deleted_count} noticias de hace más de una semana.")
+        # 1. ELIMINAR ARTÍCULOS ANTIGUOS (OPCIONAL)
+        if options['delete_old']:
+            days = options['delete_old']
+            limite = timezone.now() - datetime.timedelta(days=days)
+            deleted_count, _ = Article.objects.filter(published_at__lt=limite).delete()
+            self.stdout.write(f"🗑️  Eliminados {deleted_count} artículos de hace más de {days} días\n")
 
-        # 2. DESCARGA DE NUEVAS (Usando tus filtros y scraping)
-        self.stdout.write("2. ACTUALIZACIÓN: Buscando noticias nuevas...")
+        # 2. SINCRONIZAR NOTICIAS RSS
+        self.stdout.write("📡 Iniciando sincronización RSS...")
+        
         try:
-            new_articles = fetch_latest_news()
-            self.stdout.write(f"   -> Se guardaron {new_articles} noticias nuevas.")
+            clean_first = not options['no_clean']
+            max_entries = options['max_entries']
+            
+            new_articles = sync_all_rss_sources(
+                max_entries=max_entries, 
+                clean_first=clean_first
+            )
+            
+            if new_articles > 0:
+                self.stdout.write(self.style.SUCCESS(f"\n✅ Se agregaron {new_articles} artículos nuevos"))
+            else:
+                self.stdout.write(self.style.WARNING("\n⚠️  No se encontraron artículos nuevos"))
+                
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"   -> Error al actualizar: {e}"))
+            self.stdout.write(self.style.ERROR(f"\n❌ Error durante sincronización: {e}"))
+            raise
 
-        self.stdout.write("--- FIN DEL PROCESO ---")
+        self.stdout.write(self.style.SUCCESS("\n=== PROCESO COMPLETADO ==="))

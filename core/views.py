@@ -130,6 +130,7 @@ def configuracion(request):
         'keywords': Keyword.objects.all().order_by('term'),
         'measures': MonitoredMeasure.objects.all().order_by('sutra_id'),
         'comms': MonitoredCommission.objects.all().order_by('name'),
+        'sources': NewsSource.objects.all().order_by('name'),
         'presets': NewsPreset.objects.all().order_by('name'),
         'available_commissions': sorted(AVAILABLE_COMMISSIONS),
     }
@@ -141,6 +142,119 @@ def delete_item(request, item_type, item_id):
     if item_type in model_map:
         get_object_or_404(model_map[item_type], id=item_id).delete()
     return redirect('configuracion')
+
+# --- API ENDPOINTS PARA AJAX ---
+@login_required
+def api_add_source(request):
+    """Agregar fuente RSS vía AJAX."""
+    if request.method == 'POST':
+        try:
+            name = request.POST.get('name', '').strip()
+            url = request.POST.get('url', '').strip()
+            
+            if not name or not url:
+                return JsonResponse({'success': False, 'error': 'Nombre y URL requeridos'}, status=400)
+            
+            source = NewsSource.objects.create(name=name, url=url, is_active=True)
+            
+            return JsonResponse({
+                'success': True,
+                'source': {
+                    'id': source.id,
+                    'name': source.name,
+                    'url': source.url,
+                    'is_active': source.is_active
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def api_delete_source(request, source_id):
+    """Eliminar fuente RSS vía AJAX."""
+    if request.method == 'DELETE' or request.method == 'POST':
+        try:
+            source = get_object_or_404(NewsSource, id=source_id)
+            source.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def api_toggle_source(request, source_id):
+    """Activar/desactivar fuente RSS vía AJAX."""
+    if request.method == 'POST':
+        try:
+            source = get_object_or_404(NewsSource, id=source_id)
+            source.is_active = not source.is_active
+            source.save()
+            return JsonResponse({'success': True, 'is_active': source.is_active})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def api_add_preset(request):
+    """Agregar preset de noticias vía AJAX."""
+    if request.method == 'POST':
+        try:
+            name = request.POST.get('name', '').strip()
+            keywords = request.POST.get('keywords', '').strip()
+            
+            if not name or not keywords:
+                return JsonResponse({'success': False, 'error': 'Nombre y keywords requeridos'}, status=400)
+            
+            preset, created = NewsPreset.objects.update_or_create(
+                name=name,
+                defaults={'keywords': keywords, 'is_active': True}
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'created': created,
+                'preset': {
+                    'id': preset.id,
+                    'name': preset.name,
+                    'keywords': preset.keywords,
+                    'is_active': preset.is_active
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def api_delete_preset(request, preset_id):
+    """Eliminar preset vía AJAX."""
+    if request.method == 'DELETE' or request.method == 'POST':
+        try:
+            preset = get_object_or_404(NewsPreset, id=preset_id)
+            preset.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def api_toggle_preset(request, preset_id):
+    """Activar/desactivar preset vía AJAX."""
+    if request.method == 'POST':
+        try:
+            preset = get_object_or_404(NewsPreset, id=preset_id)
+            preset.is_active = not preset.is_active
+            preset.save()
+            return JsonResponse({'success': True, 'is_active': preset.is_active})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 @login_required
 def comparador(request, bill_id=None):

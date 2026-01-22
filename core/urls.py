@@ -20,4 +20,12 @@ urlpatterns = [
     path('calendar/feed/', views.calendar_feed, name='calendar_feed'),
     path('comparador/', views.comparador, name='comparador_home'),
     path('comparador/<int:bill_id>/', views.comparador, name='comparador'),
+    
+    # --- API ENDPOINTS ---
+    path('api/sources/add/', views.api_add_source, name='api_add_source'),
+    path('api/sources/<int:source_id>/delete/', views.api_delete_source, name='api_delete_source'),
+    path('api/sources/<int:source_id>/toggle/', views.api_toggle_source, name='api_toggle_source'),
+    path('api/presets/add/', views.api_add_preset, name='api_add_preset'),
+    path('api/presets/<int:preset_id>/delete/', views.api_delete_preset, name='api_delete_preset'),
+    path('api/presets/<int:preset_id>/toggle/', views.api_toggle_preset, name='api_toggle_preset'),
 ]

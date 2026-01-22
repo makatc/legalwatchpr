@@ -182,7 +182,7 @@ def check_match(text, presets):
     for preset in presets:
         # Obtener keywords y threshold
         keywords = [k.strip() for k in preset.keywords.split(',') if k.strip()]
-        threshold = preset.threshold if hasattr(preset, 'threshold') else 30
+        threshold = preset.threshold if hasattr(preset, 'threshold') else 15
         fields = preset.fields_to_analyze if hasattr(preset, 'fields_to_analyze') else "title,description"
         
         # Calcular score
@@ -195,10 +195,10 @@ def check_match(text, presets):
     
     # Determinar si pasa el filtro
     # Usar el threshold del mejor preset
-    threshold_to_use = 30  # Default
+    threshold_to_use = 15  # Default (optimizado para abogados - alta sensibilidad)
     for preset in presets:
         if preset.name == best_preset:
-            threshold_to_use = preset.threshold if hasattr(preset, 'threshold') else 30
+            threshold_to_use = preset.threshold if hasattr(preset, 'threshold') else 15
             break
     
     match = best_score >= threshold_to_use

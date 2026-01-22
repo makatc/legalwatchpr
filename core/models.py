@@ -42,8 +42,8 @@ class NewsPreset(models.Model):
     name = models.CharField(max_length=100)
     keywords = models.TextField(help_text="Separadas por coma")
     threshold = models.IntegerField(
-        default=30,
-        help_text="Score mínimo de relevancia (0-100) para incluir artículo"
+        default=15,
+        help_text="Score mínimo de relevancia (0-100) para incluir artículo. Recomendado: 15-20 para alta sensibilidad"
     )
     fields_to_analyze = models.CharField(
         max_length=100,

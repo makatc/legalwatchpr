@@ -2,122 +2,6 @@
 
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-    
-    <!-- Panel Lateral de Configuración -->
-    <div id="configPanel" class="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 overflow-y-auto">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Configuración</h2>
-                <button onclick="toggleConfigPanel()" class="text-gray-500 hover:text-gray-700 text-2xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <!-- Filtros de Noticias -->
-            <div class="mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                    <i class="fas fa-newspaper text-blue-500 mr-2"></i> Filtros de Noticias
-                </h3>
-                
-                <form method="POST" action="{% url 'configuracion' %}" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    {% csrf_token %}
-                    <input type="hidden" name="add_preset" value="true">
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">Nombre del Tema</label>
-                            <input type="text" name="preset_name" placeholder="Ej: Energía Renovable" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">Palabras Clave (separadas por coma)</label>
-                            <textarea name="preset_keywords" rows="2" placeholder="luma, energia electrica, paneles solares..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs font-bold text-gray-500 uppercase">Threshold (0-100)</label>
-                                <input type="number" name="preset_threshold" value="30" min="0" max="100" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <p class="text-xs text-gray-400 mt-1">Score mínimo</p>
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-gray-500 uppercase">Campos</label>
-                                <input type="text" name="preset_fields" value="title,description" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <p class="text-xs text-gray-400 mt-1">title,description</p>
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-blue-700 shadow-sm">
-                            <i class="fas fa-plus mr-1"></i> Crear Filtro
-                        </button>
-                    </div>
-                </form>
-
-                <ul class="space-y-2 max-h-64 overflow-y-auto">
-                    {% for preset in presets %}
-                    <li class="bg-gray-50 p-3 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex-1">
-                                <span class="font-bold text-gray-800 block text-sm">{{ preset.name }}</span>
-                                <span class="text-xs text-gray-500 truncate block">{{ preset.keywords }}</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2 text-xs">
-                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                Threshold: {{ preset.threshold }}
-                            </span>
-                            <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded">
-                                {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
-                            </span>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="text-center text-gray-400 text-sm py-2">No tienes filtros activos.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <!-- Fuentes RSS -->
-            <div class="mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                    <i class="fas fa-rss text-orange-500 mr-2"></i> Fuentes RSS
-                </h3>
-                
-                <form method="POST" action="{% url 'configuracion' %}" class="mb-4 bg-orange-50 p-4 rounded-lg border border-orange-100">
-                    {% csrf_token %}
-                    <input type="hidden" name="add_source" value="true">
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">Nombre</label>
-                            <input type="text" name="source_name" placeholder="Ej: El Nuevo Día" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-gray-500 uppercase">URL del RSS</label>
-                            <input type="url" name="source_url" placeholder="https://..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none">
-                        </div>
-                        <button type="submit" class="w-full bg-orange-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-orange-700 shadow-sm">
-                            <i class="fas fa-plus mr-1"></i> Agregar Fuente
-                        </button>
-                    </div>
-                </form>
-
-                <ul class="space-y-2 max-h-48 overflow-y-auto">
-                    {% for source in sources %}
-                    <li class="bg-gray-50 p-3 rounded-lg hover:bg-white hover:shadow-sm transition-all">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-gray-800 text-sm">{{ source.name }}</span>
-                            <span class="{% if source.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded text-xs">
-                                {% if source.is_active %}Activo{% else %}Inactivo{% endif %}
-                            </span>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="text-center text-gray-400 text-sm py-2">No hay fuentes configuradas.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Overlay -->
-    <div id="configOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="toggleConfigPanel()"></div>
-
     <div class="max-w-7xl mx-auto p-6">
         
         <!-- Header -->
@@ -132,11 +16,11 @@
                     <i class="fas fa-sync-alt mr-2"></i> 
                     Actualizar
                 </a>
-                <button onclick="toggleConfigPanel()" 
+                <a href="{% url 'configuracion' %}" 
                    class="inline-flex items-center bg-white border-2 border-gray-300 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
                     <i class="fas fa-cog mr-2"></i> 
                     Configuración
-                </button>
+                </a>
             </div>
         </div>
 
@@ -351,21 +235,6 @@ function generarResumen(articleId) {
             btn.disabled = false;
             btn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
-}
-
-function toggleConfigPanel() {
-    const panel = document.getElementById('configPanel');
-    const overlay = document.getElementById('configOverlay');
-    
-    if (panel.classList.contains('translate-x-full')) {
-        // Abrir panel
-        panel.classList.remove('translate-x-full');
-        overlay.classList.remove('hidden');
-    } else {
-        // Cerrar panel
-        panel.classList.add('translate-x-full');
-        overlay.classList.add('hidden');
-    }
 }
 </script>
 {% endblock %}

@@ -168,11 +168,16 @@ def generate_keywords_ai(request):
         data = json.loads(request.body)
         topics_text = data.get('topics', '').strip()
         
+        print(f"📥 Solicitud recibida para generar keywords")
+        print(f"📝 Temas recibidos: {topics_text}")
+        
         if not topics_text:
             return JsonResponse({'success': False, 'error': 'No se proporcionaron temas'}, status=400)
         
         # Separar temas por línea y filtrar vacíos
         topics_list = [t.strip() for t in topics_text.split('\n') if t.strip()]
+        
+        print(f"📋 Lista de temas procesados: {topics_list}")
         
         if len(topics_list) > 10:
             return JsonResponse({
@@ -181,12 +186,16 @@ def generate_keywords_ai(request):
             }, status=400)
         
         # Generar keywords con IA
+        print(f"🤖 Llamando a IA para generar keywords...")
         keywords_dict = generate_keywords_for_topics(topics_list)
         
+        print(f"✅ Resultados de IA: {len(keywords_dict)} temas procesados")
+        
         if not keywords_dict:
+            print(f"❌ IA retornó diccionario vacío")
             return JsonResponse({
                 'success': False,
-                'error': 'No se pudieron generar keywords. Intenta nuevamente.'
+                'error': 'La IA no pudo generar keywords. Verifica la conexión o intenta con menos temas.'
             }, status=500)
         
         return JsonResponse({
@@ -194,10 +203,14 @@ def generate_keywords_ai(request):
             'results': keywords_dict
         })
         
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+    except json.JSONDecodeError as e:
+        print(f"❌ Error JSON: {e}")
+        return JsonResponse({'success': False, 'error': 'JSON inválido en la solicitud'}, status=400)
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        print(f"❌ Error inesperado: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': f'Error del servidor: {str(e)}'}, status=500)
 
 @login_required
 def delete_item(request, item_type, item_id):

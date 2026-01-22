@@ -234,8 +234,14 @@ EJEMPLO:
         
         return keywords_dict
         
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parseando JSON de IA: {e}")
+        print(f"Respuesta recibida: {response_text[:500]}")
+        return {}
     except Exception as e:
-        print(f"Error generando keywords con IA: {e}")
+        print(f"❌ Error generando keywords con IA: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
 
 # --- FUNCIONES DE SINCRONIZACIÓN RSS ---

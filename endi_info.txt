@@ -1,0 +1,22 @@
+El Nuevo Día (endi.com) - Investigación RSS
+
+RESULTADO: El Nuevo Día NO tiene feeds RSS públicos disponibles.
+
+URLs Probadas (TODAS FALLARON):
+✗ https://www.elnuevodia.com/rss/
+✗ https://www.elnuevodia.com/feed/
+✗ https://www.elnuevodia.com/noticias/rss/
+✗ https://www.elnuevodia.com/rss/puerto-rico/
+
+El sitio web no muestra ningún enlace a RSS en su navegación principal ni en el código HTML.
+
+ALTERNATIVAS:
+1. Usar otros medios de PR que SÍ tienen RSS:
+   - Metro PR ✅ (ya funciona)
+   - Primera Hora
+   - NotiCel
+   - Telemundo PR
+   
+2. El Nuevo Día solo ofrece Newsletters por email, no RSS
+
+DECISIÓN: NO AGREGAR El Nuevo Día al sistema hasta que publiquen un feed RSS válido.

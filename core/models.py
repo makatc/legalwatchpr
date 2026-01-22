@@ -17,7 +17,7 @@ class NewsSource(models.Model):
 class Article(models.Model):
     source = models.ForeignKey(NewsSource, on_delete=models.CASCADE)
     title = models.CharField(max_length=500)
-    link = models.URLField(unique=True)
+    link = models.URLField(max_length=500, unique=True)
     published_at = models.DateTimeField()
     snippet = models.TextField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)

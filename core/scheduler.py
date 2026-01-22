@@ -58,6 +58,7 @@ def start_scheduler():
     )
     
     try:
+        print("⏰ Scheduler iniciado - Sincronización automática cada 30 minutos")
         logger.info("⏰ Scheduler iniciado - Sincronización automática cada 30 minutos")
         scheduler.start()
     except Exception as e:

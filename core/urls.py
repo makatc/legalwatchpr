@@ -14,6 +14,7 @@ urlpatterns = [
     path('noticias/', views.noticias, name='noticias'),
     path('sync-noticias/', views.sync_noticias, name='sync_noticias'),
     path('resumir/<int:article_id>/', views.resumir_noticia, name='resumir_noticia'),
+    path('api/resumir/<int:article_id>/', views.api_resumir_noticia, name='api_resumir_noticia'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('delete/<str:item_type>/<int:item_id>/', views.delete_item, name='delete_item'),
     path('calendar/feed/', views.calendar_feed, name='calendar_feed'),

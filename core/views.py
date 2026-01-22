@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .models import Bill, BillVersion, Event, Keyword, MonitoredMeasure, MonitoredCommission, NewsSource, Article, NewsPreset
 from .utils import fetch_latest_news, generate_ai_summary, generate_diff_html, analyze_legal_diff, check_sutra_status
 import datetime
@@ -71,6 +71,41 @@ def sync_noticias(request):
 def resumir_noticia(request, article_id):
     generate_ai_summary(article_id)
     return redirect('noticias')
+
+@login_required
+def api_resumir_noticia(request, article_id):
+    """Endpoint AJAX para generar resumen sin recargar página."""
+    try:
+        article = Article.objects.get(id=article_id)
+        
+        # Verificar si ya existe resumen válido
+        if article.ai_summary and article.content_hash:
+            return JsonResponse({
+                'success': True,
+                'summary': article.ai_summary,
+                'cached': True
+            })
+        
+        # Generar nuevo resumen
+        success = generate_ai_summary(article_id)
+        article.refresh_from_db()
+        
+        return JsonResponse({
+            'success': success,
+            'summary': article.ai_summary if success else 'Error generando resumen',
+            'cached': False
+        })
+        
+    except Article.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Artículo no encontrado'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 def configuracion(request):

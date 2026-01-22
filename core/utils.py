@@ -170,7 +170,11 @@ def create_article_from_entry(source, entry, snippet, image_url, preset_name=Non
 
 def process_rss_entry(source, entry, active_presets):
     """
-    Procesa una entrada RSS individual.
+    Procesa una entrada RSS individual con filtrado en dos pasadas.
+    
+    Primera pasada: Filtra por título y snippet del feed (rápido)
+    Segunda pasada: Descarga contenido y confirma relevancia (exhaustivo)
+    
     Retorna: True si se creó un artículo, False si no.
     """
     link = entry.link
@@ -180,23 +184,38 @@ def process_rss_entry(source, entry, active_presets):
         return False
     
     title = entry.title
+    feed_snippet = entry.summary if hasattr(entry, 'summary') else ""
     
-    # Intentar obtener contenido completo
+    # PRIMERA PASADA: Filtro rápido en título + snippet del feed
+    # Esto ahorra descargas innecesarias
+    preliminary_text = title + " " + feed_snippet
+    match_preliminary, preset_name = check_match(preliminary_text, active_presets)
+    
+    if not match_preliminary:
+        # No pasa filtro preliminar, descartamos sin descargar
+        return False
+    
+    print(f"📌 Filtro preliminar OK: '{title[:50]}...' (Preset: {preset_name})")
+    
+    # SEGUNDA PASADA: Descargar contenido completo y confirmar
     full_content = scrape_full_text(link)
     if not full_content:
-        full_content = entry.summary if hasattr(entry, 'summary') else title
+        # Si no se pudo scraping completo, usar snippet del feed
+        full_content = feed_snippet if feed_snippet else title
     
-    # Filtrar por presets
-    match, preset_name = check_match(title + " " + full_content, active_presets)
+    # Confirmar relevancia con contenido completo
+    match_final, final_preset = check_match(title + " " + full_content, active_presets)
     
-    if not match:
+    if not match_final:
+        # Pasó preliminar pero no confirmación (falso positivo)
+        print(f"  ⚠️  Descartado tras análisis completo (falso positivo)")
         return False
     
     # Obtener imagen
     image_url = get_image_from_entry(entry)
     
-    # Crear artículo
-    create_article_from_entry(source, entry, full_content, image_url, preset_name)
+    # Crear artículo confirmado como relevante
+    create_article_from_entry(source, entry, full_content, image_url, final_preset)
     
     return True
 

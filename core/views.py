@@ -6,6 +6,7 @@ from .models import Bill, BillVersion, Event, Keyword, MonitoredMeasure, Monitor
 from .utils import fetch_latest_news, generate_ai_summary, generate_diff_html, analyze_legal_diff, check_sutra_status
 import datetime
 import icalendar
+import json
 
 AVAILABLE_COMMISSIONS = [
     "Agricultura", "Asuntos del Consumidor", "Asuntos de la Mujer", "Asuntos Internos",
@@ -162,7 +163,6 @@ def generate_keywords_ai(request):
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
     
     try:
-        import json
         from .utils import generate_keywords_for_topics
         
         data = json.loads(request.body)

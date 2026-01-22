@@ -23,6 +23,10 @@ class Article(models.Model):
     image_url = models.URLField(blank=True, null=True)
     ai_summary = models.TextField(blank=True, null=True)
     content_hash = models.CharField(max_length=32, blank=True, null=True, help_text="Hash MD5 del contenido")
+    relevance_score = models.FloatField(
+        default=0.0,
+        help_text="Score de relevancia calculado (0-100)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
@@ -37,6 +41,15 @@ class Article(models.Model):
 class NewsPreset(models.Model):
     name = models.CharField(max_length=100)
     keywords = models.TextField(help_text="Separadas por coma")
+    threshold = models.IntegerField(
+        default=30,
+        help_text="Score mínimo de relevancia (0-100) para incluir artículo"
+    )
+    fields_to_analyze = models.CharField(
+        max_length=100,
+        default="title,description",
+        help_text="Campos a analizar separados por coma: title, description"
+    )
     is_active = models.BooleanField(default=True)
 
     def __str__(self): return self.name

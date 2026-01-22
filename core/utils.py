@@ -80,6 +80,46 @@ def normalize_text(text):
     text = text.lower()
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
+def calculate_relevance_score(text, keywords, fields_to_analyze="title,description"):
+    """
+    Calcula un score de relevancia (0-100) basado en coincidencias de keywords.
+    
+    Args:
+        text: Texto a analizar
+        keywords: Lista de palabras clave
+        fields_to_analyze: Campos considerados (no usado en scoring simple)
+    
+    Retorna: Score entre 0-100
+    """
+    if not text or not keywords:
+        return 0.0
+    
+    text_normalized = normalize_text(text)
+    text_words = set(text_normalized.split())
+    
+    total_keywords = len(keywords)
+    if total_keywords == 0:
+        return 0.0
+    
+    # Contar coincidencias
+    matches = 0
+    for keyword in keywords:
+        keyword_normalized = normalize_text(keyword)
+        
+        # Coincidencia exacta de frase
+        if keyword_normalized in text_normalized:
+            matches += 2  # Peso doble para coincidencias exactas
+        # Coincidencia de palabra individual
+        elif keyword_normalized in text_words:
+            matches += 1
+    
+    # Calcular score como porcentaje
+    # Máximo posible: total_keywords * 2 (todas coincidencias exactas)
+    max_possible = total_keywords * 2
+    score = (matches / max_possible) * 100
+    
+    return min(100.0, score)  # Limitar a 100
+
 def scrape_full_text(url):
     try:
         time.sleep(0.3) 
@@ -120,23 +160,41 @@ def get_active_presets():
 
 def check_match(text, presets):
     """
-    Verifica si un texto coincide con los keywords de algún preset.
-    Retorna: (match: bool, preset_name: str)
+    Verifica si un texto coincide con los keywords de algún preset usando scoring.
+    Retorna: (match: bool, preset_name: str, score: float)
     """
-    if not presets: 
-        return True, None
+    if not presets:
+        return True, None, 100.0
     
     text_normalized = normalize_text(text)
+    best_score = 0.0
+    best_preset = None
     
     for preset in presets:
-        keywords = [k.strip() for k in preset.keywords.split(',')]
-        for keyword in keywords:
-            if not keyword: 
-                continue
-            if normalize_text(keyword) in text_normalized:
-                return True, preset.name
+        # Obtener keywords y threshold
+        keywords = [k.strip() for k in preset.keywords.split(',') if k.strip()]
+        threshold = preset.threshold if hasattr(preset, 'threshold') else 30
+        fields = preset.fields_to_analyze if hasattr(preset, 'fields_to_analyze') else "title,description"
+        
+        # Calcular score
+        score = calculate_relevance_score(text, keywords, fields)
+        
+        # Guardar mejor score
+        if score > best_score:
+            best_score = score
+            best_preset = preset.name
     
-    return False, None
+    # Determinar si pasa el filtro
+    # Usar el threshold del mejor preset
+    threshold_to_use = 30  # Default
+    for preset in presets:
+        if preset.name == best_preset:
+            threshold_to_use = preset.threshold if hasattr(preset, 'threshold') else 30
+            break
+    
+    match = best_score >= threshold_to_use
+    
+    return match, best_preset, best_score
 
 def article_exists(link):
     """Verifica si un artículo ya existe en la base de datos por URL."""
@@ -151,7 +209,7 @@ def extract_article_date(entry):
             pass
     return timezone.now()
 
-def create_article_from_entry(source, entry, snippet, image_url, preset_name=None):
+def create_article_from_entry(source, entry, snippet, image_url, preset_name=None, score=0.0):
     """
     Crea un artículo en la base de datos desde una entrada RSS.
     Retorna el artículo creado.
@@ -162,10 +220,11 @@ def create_article_from_entry(source, entry, snippet, image_url, preset_name=Non
         link=entry.link,
         published_at=extract_article_date(entry),
         snippet=snippet,
-        image_url=image_url
+        image_url=image_url,
+        relevance_score=score
     )
     
-    print(f"✅ NUEVA: '{entry.title[:50]}...' (Preset: {preset_name or 'N/A'})")
+    print(f"✅ NUEVA: '{entry.title[:50]}...' (Preset: {preset_name or 'N/A'}, Score: {score:.1f})")
     return article
 
 def process_rss_entry(source, entry, active_presets):
@@ -189,13 +248,13 @@ def process_rss_entry(source, entry, active_presets):
     # PRIMERA PASADA: Filtro rápido en título + snippet del feed
     # Esto ahorra descargas innecesarias
     preliminary_text = title + " " + feed_snippet
-    match_preliminary, preset_name = check_match(preliminary_text, active_presets)
+    match_preliminary, preset_name, score_preliminary = check_match(preliminary_text, active_presets)
     
     if not match_preliminary:
         # No pasa filtro preliminar, descartamos sin descargar
         return False
     
-    print(f"📌 Filtro preliminar OK: '{title[:50]}...' (Preset: {preset_name})")
+    print(f"📌 Filtro preliminar OK: '{title[:50]}...' (Preset: {preset_name}, Score: {score_preliminary:.1f})")
     
     # SEGUNDA PASADA: Descargar contenido completo y confirmar
     full_content = scrape_full_text(link)
@@ -204,7 +263,7 @@ def process_rss_entry(source, entry, active_presets):
         full_content = feed_snippet if feed_snippet else title
     
     # Confirmar relevancia con contenido completo
-    match_final, final_preset = check_match(title + " " + full_content, active_presets)
+    match_final, final_preset, final_score = check_match(title + " " + full_content, active_presets)
     
     if not match_final:
         # Pasó preliminar pero no confirmación (falso positivo)
@@ -214,8 +273,8 @@ def process_rss_entry(source, entry, active_presets):
     # Obtener imagen
     image_url = get_image_from_entry(entry)
     
-    # Crear artículo confirmado como relevante
-    create_article_from_entry(source, entry, full_content, image_url, final_preset)
+    # Crear artículo confirmado como relevante con score final
+    create_article_from_entry(source, entry, full_content, image_url, final_preset, final_score)
     
     return True
 
@@ -251,11 +310,16 @@ def clean_invalid_articles():
     
     for article in articles:
         full_content = article.snippet or ""
-        match, _ = check_match(article.title + " " + full_content, active_presets)
+        match, _, score = check_match(article.title + " " + full_content, active_presets)
         
         if not match:
             article.delete()
             deleted_count += 1
+        else:
+            # Actualizar score si cambió
+            if article.relevance_score != score:
+                article.relevance_score = score
+                article.save(update_fields=['relevance_score'])
     
     print(f"--- LIMPIEZA: {deleted_count} artículos eliminados ---\n")
     return deleted_count

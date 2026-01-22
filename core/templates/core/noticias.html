@@ -137,6 +137,12 @@
 
                             <!-- Actions -->
                             <div class="flex gap-2 mt-4">
+                                <button onclick="toggleFullContent({{ article.id }})" 
+                                        id="btn-leer-{{ article.id }}"
+                                        class="inline-flex items-center text-xs font-semibold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200">
+                                    <i class="fas fa-book-reader mr-2"></i> 
+                                    <span id="text-leer-{{ article.id }}">Leer Completo</span>
+                                </button>
                                 {% if not article.ai_summary %}
                                 <button onclick="generarResumen({{ article.id }})" 
                                         id="btn-resumir-{{ article.id }}"
@@ -145,22 +151,39 @@
                                     <span id="text-{{ article.id }}">Resumir con IA</span>
                                 </button>
                                 {% endif %}
-                                <!-- Contenedor para el resumen dinámico -->
-                                <div id="resumen-{{ article.id }}" class="hidden w-full mt-3 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm">
-                                    <p class="font-bold text-purple-800 text-sm mb-2 flex items-center">
-                                        <i class="fas fa-robot mr-2"></i> 
-                                        Resumen con IA
-                                    </p>
-                                    <div id="resumen-content-{{ article.id }}" class="prose prose-sm max-w-none text-gray-700">
-                                        <!-- El resumen se insertará aquí -->
-                                    </div>
-                                </div>
                                 <a href="{{ article.link }}" 
                                    target="_blank"
                                    class="inline-flex items-center text-xs font-semibold bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-all duration-200">
-                                    <i class="fas fa-book-reader mr-2"></i> 
-                                    Leer completo
+                                    <i class="fas fa-external-link-alt mr-2"></i> 
+                                    Ver Original
                                 </a>
+                            </div>
+                            
+                            <!-- Contenedor para el contenido completo -->
+                            <div id="content-{{ article.id }}" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <div class="flex justify-between items-center mb-3">
+                                    <p class="font-bold text-blue-800 text-sm flex items-center">
+                                        <i class="fas fa-newspaper mr-2"></i> 
+                                        Contenido Completo
+                                    </p>
+                                    <button onclick="toggleFullContent({{ article.id }})" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="prose prose-sm max-w-none text-gray-700">
+                                    {{ article.snippet|safe }}
+                                </div>
+                            </div>
+                            
+                            <!-- Contenedor para el resumen dinámico -->
+                            <div id="resumen-{{ article.id }}" class="hidden mt-4 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm">
+                                <p class="font-bold text-purple-800 text-sm mb-2 flex items-center">
+                                    <i class="fas fa-robot mr-2"></i> 
+                                    Resumen con IA
+                                </p>
+                                <div id="resumen-content-{{ article.id }}" class="prose prose-sm max-w-none text-gray-700">
+                                    <!-- El resumen se insertará aquí -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -235,6 +258,19 @@ function generarResumen(articleId) {
             btn.disabled = false;
             btn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
+}
+
+function toggleFullContent(articleId) {
+    const contentDiv = document.getElementById(`content-${articleId}`);
+    const btnText = document.getElementById(`text-leer-${articleId}`);
+    
+    if (contentDiv.classList.contains('hidden')) {
+        contentDiv.classList.remove('hidden');
+        btnText.textContent = 'Ocultar';
+    } else {
+        contentDiv.classList.add('hidden');
+        btnText.textContent = 'Leer Completo';
+    }
 }
 </script>
 {% endblock %}

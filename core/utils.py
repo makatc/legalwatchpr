@@ -363,6 +363,7 @@ def generate_ai_summary(article_id):
     """
     Genera un resumen IA para un artículo usando chunking para textos largos.
     Implementa formato 5W (quién, qué, dónde, cuándo, por qué).
+    Valida caché de resúmenes usando content_hash.
     """
     try:
         article = Article.objects.get(id=article_id)
@@ -374,15 +375,17 @@ def generate_ai_summary(article_id):
             article.save()
             return False
         
-        # Calcular hash del contenido
-        content_hash = calculate_content_hash(content)
+        # Calcular hash del contenido actual
+        current_hash = calculate_content_hash(content)
         
         # Verificar si ya existe un resumen válido
-        if article.ai_summary:
-            # Si ya hay resumen, verificar si sigue siendo válido
-            # (En futuro se compararía con hash almacenado)
-            # Por ahora, si existe resumen, lo regeneramos si se solicita explícitamente
-            pass
+        if article.ai_summary and article.content_hash == current_hash:
+            print(f"📋 Resumen en caché válido para: {article.title[:50]}...")
+            return True  # Resumen existente y válido, no regenerar
+        
+        # Si el hash no coincide o no hay resumen, generamos uno nuevo
+        if article.ai_summary and article.content_hash != current_hash:
+            print(f"🔄 Contenido modificado, regenerando resumen...")
         
         # Obtener modelo disponible
         model_name = get_available_gemini_model()
@@ -412,8 +415,9 @@ def generate_ai_summary(article_id):
             print(f"  Generando resumen final...")
             summary = summarize_text_chunk(model, combined, is_final=True)
         
-        # Guardar resumen
+        # Guardar resumen y hash
         article.ai_summary = summary
+        article.content_hash = current_hash
         article.save()
         
         print(f"✅ Resumen generado para: {article.title[:50]}...")

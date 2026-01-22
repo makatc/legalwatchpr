@@ -22,7 +22,15 @@ class Article(models.Model):
     snippet = models.TextField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
     ai_summary = models.TextField(blank=True, null=True)
+    content_hash = models.CharField(max_length=32, blank=True, null=True, help_text="Hash MD5 del contenido")
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        # Calcular hash del contenido si existe snippet
+        if self.snippet:
+            import hashlib
+            self.content_hash = hashlib.md5(self.snippet.encode('utf-8')).hexdigest()
+        super().save(*args, **kwargs)
 
     def __str__(self): return self.title
 

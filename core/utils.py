@@ -282,28 +282,145 @@ def sync_database_with_filters():
     """Función legacy - mantiene compatibilidad con código existente."""
     return clean_invalid_articles()
 
+def calculate_content_hash(text):
+    """Calcula un hash MD5 del contenido para validación de caché."""
+    import hashlib
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+def chunk_text(text, max_words=800):
+    """
+    Divide un texto largo en fragmentos manejables.
+    
+    Args:
+        text: Texto a dividir
+        max_words: Máximo de palabras por fragmento
+    
+    Retorna: Lista de fragmentos de texto
+    """
+    words = text.split()
+    chunks = []
+    
+    for i in range(0, len(words), max_words):
+        chunk = ' '.join(words[i:i + max_words])
+        chunks.append(chunk)
+    
+    return chunks
+
+def get_available_gemini_model():
+    """Obtiene un modelo Gemini disponible."""
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                return m.name
+    except:
+        pass
+    return 'models/gemini-1.5-flash'
+
+def summarize_text_chunk(model, chunk, is_final=False):
+    """
+    Resume un fragmento de texto individual.
+    
+    Args:
+        model: Modelo Gemini configurado
+        chunk: Texto del fragmento
+        is_final: Si es el resumen final (combina chunks previos)
+    
+    Retorna: Texto del resumen
+    """
+    if is_final:
+        # Resumen final que combina mini-resúmenes
+        prompt = """
+Resume el siguiente contenido en 3-5 puntos clave siguiendo el formato de las 5W del periodismo.
+Usa HTML con viñetas (<ul><li>). Estructura:
+
+1. QUÉ/QUIÉN: El hecho principal y protagonistas
+2. DÓNDE/CUÁNDO: Ubicación y tiempo del evento
+3. POR QUÉ/CÓMO: Contexto, causas o método
+4. IMPACTO: Consecuencias o importancia
+5. QUÉ SIGUE (si aplica): Próximos pasos o situación futura
+
+Sé conciso, objetivo y claro. Usa español neutral.
+
+Texto a resumir:
+""" + chunk
+    else:
+        # Resumen de un fragmento individual
+        prompt = f"""
+Resume los puntos principales del siguiente fragmento de noticia de forma concisa.
+Enfócate en hechos concretos, protagonistas y datos relevantes.
+
+Fragmento:
+{chunk}
+"""
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error resumiendo fragmento: {str(e)}"
+
 def generate_ai_summary(article_id):
+    """
+    Genera un resumen IA para un artículo usando chunking para textos largos.
+    Implementa formato 5W (quién, qué, dónde, cuándo, por qué).
+    """
     try:
         article = Article.objects.get(id=article_id)
-        available_model = None
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_model = m.name
-                    break 
-        except: pass
-        if not available_model: available_model = 'models/gemini-1.5-flash'
         
-        model = genai.GenerativeModel(available_model)
-        prompt = (
-            "Eres un analista experto. Resume el siguiente texto en 3 puntos clave (HTML <ul><li>). "
-            f"\n\nNoticia: {article.title}\n{article.snippet}"
-        )
-        response = model.generate_content(prompt)
-        article.ai_summary = response.text
+        # Obtener contenido a resumir
+        content = article.snippet or ""
+        if not content or len(content) < 100:
+            article.ai_summary = "⚠️ <strong>Contenido insuficiente</strong> para generar resumen."
+            article.save()
+            return False
+        
+        # Calcular hash del contenido
+        content_hash = calculate_content_hash(content)
+        
+        # Verificar si ya existe un resumen válido
+        if article.ai_summary:
+            # Si ya hay resumen, verificar si sigue siendo válido
+            # (En futuro se compararía con hash almacenado)
+            # Por ahora, si existe resumen, lo regeneramos si se solicita explícitamente
+            pass
+        
+        # Obtener modelo disponible
+        model_name = get_available_gemini_model()
+        model = genai.GenerativeModel(model_name)
+        
+        # Determinar si necesitamos chunking
+        word_count = len(content.split())
+        
+        if word_count <= 800:
+            # Texto corto - resumen directo
+            summary = summarize_text_chunk(model, content, is_final=True)
+        else:
+            # Texto largo - dividir en chunks, resumir cada uno, luego combinar
+            print(f"📄 Artículo largo ({word_count} palabras) - usando chunking")
+            
+            chunks = chunk_text(content, max_words=800)
+            chunk_summaries = []
+            
+            for i, chunk in enumerate(chunks):
+                print(f"  Resumiendo fragmento {i+1}/{len(chunks)}...")
+                chunk_summary = summarize_text_chunk(model, chunk, is_final=False)
+                chunk_summaries.append(chunk_summary)
+                time.sleep(0.5)  # Pequeña pausa entre chunks
+            
+            # Combinar resúmenes de chunks y hacer resumen final
+            combined = "\n\n".join(chunk_summaries)
+            print(f"  Generando resumen final...")
+            summary = summarize_text_chunk(model, combined, is_final=True)
+        
+        # Guardar resumen
+        article.ai_summary = summary
         article.save()
+        
+        print(f"✅ Resumen generado para: {article.title[:50]}...")
         return True
+        
     except Exception as e:
+        print(f"❌ Error generando resumen: {str(e)}")
         article.ai_summary = f"⚠️ <strong>ERROR TÉCNICO:</strong> {str(e)}"
         article.save()
         return False

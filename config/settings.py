@@ -1,5 +1,9 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # --- RUTAS BASE ---
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -7,12 +11,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SEGURIDAD ---
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-clave-secreta-para-legalwatch-ai-remplazar-en-prod'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-clave-secreta-para-legalwatch-ai-remplazar-en-prod')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # --- APLICACIONES INSTALADAS ---
 INSTALLED_APPS = [
@@ -58,8 +62,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # --- BASE DE DATOS ---
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 

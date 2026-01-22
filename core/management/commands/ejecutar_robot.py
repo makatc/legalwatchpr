@@ -2,7 +2,7 @@ import time
 import requests
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from core.models import Bill, BillEvent, Keyword, MonitoredMeasure, MonitoredCommission, UserProfile
+from core.models import Bill, Keyword, MonitoredMeasure, MonitoredCommission, UserProfile
 from core.scraper import LegisScraper 
 
 class Command(BaseCommand):

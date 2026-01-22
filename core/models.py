@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from datetime import time
 import os
 from pypdf import PdfReader
 import docx  # LIBRERÍA NUEVA PARA WORD
@@ -81,6 +82,22 @@ class BillVersion(models.Model):
     def __str__(self): return f"{self.bill.number} - {self.version_name}"
 
 # --- 3. CONFIGURACIÓN Y MONITOREO ---
+class SystemSettings(models.Model):
+    """Configuración del servicio de monitoreo automático"""
+    is_active = models.BooleanField(default=True, help_text="Activar/desactivar el servicio globalmente")
+    active_days = models.CharField(max_length=50, default="0,1,2,3,4", help_text="Días activos: 0=Lunes, 6=Domingo")
+    high_freq_start = models.TimeField(default=time(8, 0), help_text="Inicio del horario intensivo")
+    high_freq_end = models.TimeField(default=time(17, 0), help_text="Fin del horario intensivo")
+    high_freq_interval = models.IntegerField(default=15, help_text="Intervalo en modo intensivo (minutos)")
+    low_freq_interval = models.IntegerField(default=120, help_text="Intervalo en modo pasivo (minutos)")
+    
+    class Meta:
+        verbose_name = "Configuración del Sistema"
+        verbose_name_plural = "Configuración del Sistema"
+    
+    def __str__(self):
+        return f"Config Sistema ({'Activo' if self.is_active else 'Pausado'})"
+
 class Keyword(models.Model):
     term = models.CharField(max_length=100)
     def __str__(self): return self.term
@@ -92,9 +109,23 @@ class MonitoredMeasure(models.Model):
 
 class MonitoredCommission(models.Model):
     name = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=True)
     def __str__(self): return self.name
 
-# --- 4. AGENDA / CALENDARIO ---
+# --- 4. PERFILES DE USUARIO ---
+from django.contrib.auth.models import User
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    webhook_measures = models.URLField(max_length=500, blank=True, null=True, verbose_name="Webhook Medidas")
+    webhook_commissions = models.URLField(max_length=500, blank=True, null=True, verbose_name="Webhook Comisiones")
+    webhook_keywords = models.URLField(max_length=500, blank=True, null=True, verbose_name="Webhook Keywords")
+    webhook_general = models.URLField(max_length=500, blank=True, null=True, verbose_name="Webhook General")
+    
+    def __str__(self):
+        return f"Perfil de {self.user.username}"
+
+# --- 5. AGENDA / CALENDARIO ---
 class Event(models.Model):
     title = models.CharField(max_length=200)
     date = models.DateTimeField()

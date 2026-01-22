@@ -108,60 +108,179 @@ def get_image_from_entry(entry):
     if 'media_thumbnail' in entry: return entry.media_thumbnail[0]['url']
     return None
 
+# --- FUNCIONES DE SINCRONIZACIÓN RSS ---
+
+def get_active_sources():
+    """Obtiene todas las fuentes RSS activas."""
+    return NewsSource.objects.filter(is_active=True)
+
+def get_active_presets():
+    """Obtiene todos los presets de filtrado activos."""
+    return NewsPreset.objects.filter(is_active=True)
+
 def check_match(text, presets):
-    if not presets: return True 
+    """
+    Verifica si un texto coincide con los keywords de algún preset.
+    Retorna: (match: bool, preset_name: str)
+    """
+    if not presets: 
+        return True, None
+    
     text_normalized = normalize_text(text)
+    
     for preset in presets:
         keywords = [k.strip() for k in preset.keywords.split(',')]
-        for k in keywords:
-            if not k: continue
-            if normalize_text(k) in text_normalized:
-                return True, preset.name 
+        for keyword in keywords:
+            if not keyword: 
+                continue
+            if normalize_text(keyword) in text_normalized:
+                return True, preset.name
+    
     return False, None
 
-def sync_database_with_filters():
-    print("--- RE-VALIDANDO NOTICIAS EXISTENTES ---")
-    active_presets = NewsPreset.objects.filter(is_active=True)
+def article_exists(link):
+    """Verifica si un artículo ya existe en la base de datos por URL."""
+    return Article.objects.filter(link=link).exists()
+
+def extract_article_date(entry):
+    """Extrae la fecha de publicación de una entrada RSS."""
+    if hasattr(entry, 'published'):
+        try:
+            return parser.parse(entry.published)
+        except:
+            pass
+    return timezone.now()
+
+def create_article_from_entry(source, entry, snippet, image_url, preset_name=None):
+    """
+    Crea un artículo en la base de datos desde una entrada RSS.
+    Retorna el artículo creado.
+    """
+    article = Article.objects.create(
+        source=source,
+        title=entry.title,
+        link=entry.link,
+        published_at=extract_article_date(entry),
+        snippet=snippet,
+        image_url=image_url
+    )
+    
+    print(f"✅ NUEVA: '{entry.title[:50]}...' (Preset: {preset_name or 'N/A'})")
+    return article
+
+def process_rss_entry(source, entry, active_presets):
+    """
+    Procesa una entrada RSS individual.
+    Retorna: True si se creó un artículo, False si no.
+    """
+    link = entry.link
+    
+    # Evitar duplicados
+    if article_exists(link):
+        return False
+    
+    title = entry.title
+    
+    # Intentar obtener contenido completo
+    full_content = scrape_full_text(link)
+    if not full_content:
+        full_content = entry.summary if hasattr(entry, 'summary') else title
+    
+    # Filtrar por presets
+    match, preset_name = check_match(title + " " + full_content, active_presets)
+    
+    if not match:
+        return False
+    
+    # Obtener imagen
+    image_url = get_image_from_entry(entry)
+    
+    # Crear artículo
+    create_article_from_entry(source, entry, full_content, image_url, preset_name)
+    
+    return True
+
+def sync_rss_source(source, active_presets, max_entries=10):
+    """
+    Sincroniza una fuente RSS individual.
+    Retorna: cantidad de artículos nuevos creados.
+    """
+    try:
+        feed = feedparser.parse(source.url, request_headers=HEADERS)
+        new_count = 0
+        
+        for entry in feed.entries[:max_entries]:
+            if process_rss_entry(source, entry, active_presets):
+                new_count += 1
+        
+        return new_count
+        
+    except Exception as e:
+        print(f"❌ Error en fuente {source.name}: {e}")
+        return 0
+
+def clean_invalid_articles():
+    """
+    Elimina artículos que ya no coinciden con los presets activos.
+    Retorna: cantidad de artículos eliminados.
+    """
+    print("--- RE-VALIDANDO ARTÍCULOS EXISTENTES ---")
+    
+    active_presets = get_active_presets()
     articles = Article.objects.all()
     deleted_count = 0
+    
     for article in articles:
-        full_content = article.snippet
+        full_content = article.snippet or ""
         match, _ = check_match(article.title + " " + full_content, active_presets)
+        
         if not match:
             article.delete()
             deleted_count += 1
-    print(f"--- LIMPIEZA COMPLETADA: {deleted_count} noticias eliminadas ---\n")
+    
+    print(f"--- LIMPIEZA: {deleted_count} artículos eliminados ---\n")
+    return deleted_count
 
-def fetch_latest_news():
-    sync_database_with_filters()
-    sources = NewsSource.objects.filter(is_active=True)
-    active_presets = NewsPreset.objects.filter(is_active=True)
+def sync_all_rss_sources(max_entries=10, clean_first=True):
+    """
+    Sincroniza todas las fuentes RSS activas.
+    
+    Args:
+        max_entries: Número máximo de entradas a procesar por fuente
+        clean_first: Si True, limpia artículos inválidos antes de sincronizar
+    
+    Retorna: cantidad total de artículos nuevos.
+    """
+    # Limpiar artículos obsoletos
+    if clean_first:
+        clean_invalid_articles()
+    
+    # Obtener fuentes y presets activos
+    sources = get_active_sources()
+    active_presets = get_active_presets()
+    
+    if not sources.exists():
+        print("⚠️ No hay fuentes RSS activas")
+        return 0
+    
+    print(f"--- SINCRONIZANDO {sources.count()} FUENTES RSS ---")
+    
     total_new = 0
-    print(f"--- BUSCANDO NUEVAS NOTICIAS ---")
     for source in sources:
-        try:
-            feed = feedparser.parse(source.url, request_headers=HEADERS)
-            for entry in feed.entries[:10]:
-                link = entry.link
-                if Article.objects.filter(link=link).exists(): continue
-                title = entry.title
-                full_content = scrape_full_text(link)
-                if not full_content: full_content = entry.summary if hasattr(entry, 'summary') else title
-                match, preset_name = check_match(title + " " + full_content, active_presets)
-                if match: 
-                    print(f"✅ NUEVA ENCONTRADA: '{title[:30]}...' (Tema: {preset_name})")
-                    pub_date = timezone.now()
-                    if hasattr(entry, 'published'):
-                        try: pub_date = parser.parse(entry.published)
-                        except: pass
-                    img = get_image_from_entry(entry)
-                    Article.objects.create(
-                        source=source, title=title, link=link, 
-                        published_at=pub_date, snippet=full_content, image_url=img
-                    )
-                    total_new += 1
-        except Exception as e: print(f"Error {source.name}: {e}")
+        new_count = sync_rss_source(source, active_presets, max_entries)
+        total_new += new_count
+    
+    print(f"\n--- TOTAL: {total_new} artículos nuevos ---")
     return total_new
+
+# Alias para compatibilidad con código existente
+def fetch_latest_news():
+    """Función legacy - mantiene compatibilidad con código existente."""
+    return sync_all_rss_sources(max_entries=10, clean_first=True)
+
+def sync_database_with_filters():
+    """Función legacy - mantiene compatibilidad con código existente."""
+    return clean_invalid_articles()
 
 def generate_ai_summary(article_id):
     try:

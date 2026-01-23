@@ -4,6 +4,17 @@ from datetime import time
 import os
 from pypdf import PdfReader
 import docx  # LIBRERÍA NUEVA PARA WORD
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
+
+# Importar pgvector solo si está disponible
+try:
+    from pgvector.django import VectorField, HnswIndex
+    PGVECTOR_AVAILABLE = True
+except ImportError:
+    PGVECTOR_AVAILABLE = False
+    VectorField = None
+    HnswIndex = None
 
 # --- 1. GESTIÓN DE NOTICIAS ---
 class NewsSource(models.Model):
@@ -29,6 +40,24 @@ class Article(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     
+    # CAMPO PARA BÚSQUEDA FULL-TEXT (siempre disponible)
+    search_vector = SearchVectorField(
+        null=True, 
+        blank=True,
+        help_text="Vector de búsqueda full-text precomputado (PostgreSQL tsvector)"
+    )
+    
+    # CAMPO PARA EMBEDDINGS (solo si pgvector está disponible)
+    # Se añade dinámicamente más abajo
+    
+    class Meta:
+        ordering = ['-published_at']
+        indexes = [
+            # Índice GIN para búsqueda full-text léxica
+            GinIndex(fields=['search_vector'], name='idx_article_search_vector'),
+            # NOTA: Índice HNSW para embeddings se crea manualmente (ver create_hnsw_index.sql)
+        ]
+    
     def save(self, *args, **kwargs):
         # Calcular hash del contenido si existe snippet
         if self.snippet:
@@ -37,6 +66,19 @@ class Article(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self): return self.title
+
+
+# Añadir campo embedding dinámicamente solo si pgvector está disponible
+if PGVECTOR_AVAILABLE:
+    Article.add_to_class(
+        'embedding',
+        VectorField(
+            dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
+            null=True,
+            blank=True,
+            help_text="Vector de embeddings semánticos (384 dimensiones)"
+        )
+    )
 
 class NewsPreset(models.Model):
     name = models.CharField(max_length=100)

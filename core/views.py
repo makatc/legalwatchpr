@@ -1,19 +1,26 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout
-from django.http import HttpResponse, JsonResponse
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from .models import Bill, BillVersion, Event, Keyword, MonitoredMeasure, MonitoredCommission, NewsSource, Article, NewsPreset
-from .serializers import ArticleSearchResultSerializer, SearchStatsSerializer
-from .utils import fetch_latest_news, generate_ai_summary, generate_diff_html, analyze_legal_diff, check_sutra_status
-from services import search_documents, search_semantic_only, search_keyword_only, get_search_stats
 import datetime
-import icalendar
 import json
 import logging
+
+import icalendar
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from services import (get_search_stats, search_documents, search_keyword_only,
+                      search_semantic_only)
+
+from .models import (Article, Bill, BillVersion, Event, Keyword,
+                     MonitoredCommission, MonitoredMeasure, NewsPreset,
+                     NewsSource)
+from .serializers import ArticleSearchResultSerializer, SearchStatsSerializer
+from .utils import (analyze_legal_diff, check_sutra_status, fetch_latest_news,
+                    generate_ai_summary, generate_diff_html)
 
 logger = logging.getLogger(__name__)
 

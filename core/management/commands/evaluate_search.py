@@ -6,8 +6,9 @@ Ejecuta evaluaciones de métricas de IR sobre el sistema de búsqueda.
 """
 
 from django.core.management.base import BaseCommand
-from services import evaluate_search_quality, format_evaluation_report
+
 from core.models import Article
+from services import evaluate_search_quality, format_evaluation_report
 
 
 class Command(BaseCommand):

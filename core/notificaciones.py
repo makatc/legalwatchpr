@@ -1,6 +1,7 @@
 import requests
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
+
 
 # --- 1. ENVIAR POR TELEGRAM ---
 def enviar_telegram(token, chat_id, mensaje):

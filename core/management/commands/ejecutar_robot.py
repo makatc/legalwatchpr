@@ -1,9 +1,13 @@
 import time
+
 import requests
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from core.models import Bill, Keyword, MonitoredMeasure, MonitoredCommission, UserProfile
-from core.scraper import LegisScraper 
+
+from core.models import (Bill, Keyword, MonitoredCommission, MonitoredMeasure,
+                         UserProfile)
+from core.scraper import LegisScraper
+
 
 class Command(BaseCommand):
     help = 'Robot Multi-Bot: Clasifica alertas y usa canales específicos'

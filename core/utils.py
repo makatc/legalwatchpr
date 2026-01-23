@@ -1,17 +1,18 @@
+import difflib
+import json
+import time
+import unicodedata
+
 import feedparser
+import google.generativeai as genai
 import requests
+import urllib3
 from bs4 import BeautifulSoup
 from dateutil import parser
-from .models import NewsSource, Article, NewsPreset
 from django.utils import timezone
-import google.generativeai as genai
-import unicodedata
-import time
-import datetime
-import difflib
-import urllib3
 from rank_bm25 import BM25Okapi
-import json
+
+from .models import Article, NewsPreset, NewsSource
 
 # Desactivar las advertencias molestas de seguridad SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -262,14 +263,14 @@ def check_match(text, presets):
     if not presets:
         return True, None, 100.0
     
-    text_normalized = normalize_text(text)
+    normalize_text(text)
     best_score = 0.0
     best_preset = None
     
     for preset in presets:
         # Obtener keywords y threshold
         keywords = [k.strip() for k in preset.keywords.split(',') if k.strip()]
-        threshold = preset.threshold if hasattr(preset, 'threshold') else 15
+        preset.threshold if hasattr(preset, 'threshold') else 15
         fields = preset.fields_to_analyze if hasattr(preset, 'fields_to_analyze') else "title,description"
         
         # Calcular score

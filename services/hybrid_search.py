@@ -18,8 +18,10 @@ Referencias:
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from django.db import connection
+
 from services import EmbeddingGenerator
 
 logger = logging.getLogger(__name__)

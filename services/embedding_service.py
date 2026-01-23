@@ -22,8 +22,8 @@ Uso:
 import logging
 import threading
 from typing import List, Optional
+
 from sentence_transformers import SentenceTransformer
-import numpy as np
 
 logger = logging.getLogger(__name__)
 

@@ -18,12 +18,14 @@ Referencias:
 - Relevance Judgments for Information Retrieval
 """
 
-import time
 import logging
-from typing import List, Dict, Set, Any, Tuple, Optional
+import time
 from collections import defaultdict
 from statistics import mean, median
-from services import search_documents, search_semantic_only, search_keyword_only
+from typing import Any, Dict, List, Set, Tuple
+
+from services import (search_documents, search_keyword_only,
+                      search_semantic_only)
 
 logger = logging.getLogger(__name__)
 

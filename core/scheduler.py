@@ -3,12 +3,11 @@ Configuración del Scheduler Automático para Sincronización de Noticias.
 Usa APScheduler para ejecutar tareas periódicas.
 """
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from django_apscheduler.jobstores import DjangoJobStore
-from django.conf import settings
 import logging
 import sys
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 

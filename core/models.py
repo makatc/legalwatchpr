@@ -1,11 +1,11 @@
-from django.db import models
-from django.utils import timezone
 from datetime import time
-import os
-from pypdf import PdfReader
+
 import docx  # LIBRERÍA NUEVA PARA WORD
-from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
+from django.db import models
+from pypdf import PdfReader
+
 # from pgvector.django import VectorField, HnswIndex
 
 # --- 1. GESTIÓN DE NOTICIAS ---
@@ -174,6 +174,7 @@ class MonitoredCommission(models.Model):
 
 # --- 4. PERFILES DE USUARIO ---
 from django.contrib.auth.models import User
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')

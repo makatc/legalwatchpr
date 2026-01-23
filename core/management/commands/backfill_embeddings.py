@@ -20,9 +20,11 @@ Uso:
 """
 
 import logging
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from tqdm import tqdm
+
 from core.models import Article
 from services import EmbeddingGenerator
 
@@ -126,8 +128,8 @@ class Command(BaseCommand):
                 batch_ids = article_ids[i:i + batch_size]
                 batch_articles = Article.objects.filter(id__in=batch_ids)
                 
-                batch_num = (i // batch_size) + 1
-                total_batches = (len(article_ids) + batch_size - 1) // batch_size
+                (i // batch_size) + 1
+                (len(article_ids) + batch_size - 1) // batch_size
                 
                 # Procesar cada artículo del batch
                 for article in batch_articles:

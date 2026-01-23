@@ -1,8 +1,11 @@
+import datetime
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from core.models import Article
-from core.utils import sync_all_rss_sources, clean_invalid_articles
-import datetime
+from core.utils import sync_all_rss_sources
+
 
 class Command(BaseCommand):
     help = 'Sincroniza noticias RSS desde fuentes activas con filtros por presets'

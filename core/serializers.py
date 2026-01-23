@@ -6,6 +6,7 @@ Serializadores de Django REST Framework para la API de búsqueda híbrida.
 """
 
 from rest_framework import serializers
+
 from core.models import Article
 
 

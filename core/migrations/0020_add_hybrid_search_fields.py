@@ -7,7 +7,6 @@ from django.db import migrations
 
 # Importar pgvector solo si está disponible
 try:
-    import pgvector.django.vector
     PGVECTOR_AVAILABLE = True
 except ImportError:
     PGVECTOR_AVAILABLE = False
@@ -35,7 +34,6 @@ def add_embedding_field_if_available(apps, schema_editor):
             return
     
     # Si llegamos aquí, pgvector está disponible - crear campo
-    from pgvector.django.vector import VectorField
     Article = apps.get_model('core', 'Article')
     
     schema_editor.add_field(

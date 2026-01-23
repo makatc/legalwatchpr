@@ -6,15 +6,7 @@ from pypdf import PdfReader
 import docx  # LIBRERÍA NUEVA PARA WORD
 from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
-
-# Importar pgvector solo si está disponible
-try:
-    from pgvector.django import VectorField, HnswIndex
-    PGVECTOR_AVAILABLE = True
-except ImportError:
-    PGVECTOR_AVAILABLE = False
-    VectorField = None
-    HnswIndex = None
+from pgvector.django import VectorField, HnswIndex
 
 # --- 1. GESTIÓN DE NOTICIAS ---
 class NewsSource(models.Model):
@@ -40,15 +32,20 @@ class Article(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     
-    # CAMPO PARA BÚSQUEDA FULL-TEXT (siempre disponible)
+    # CAMPO PARA BÚSQUEDA FULL-TEXT (PostgreSQL tsvector)
     search_vector = SearchVectorField(
         null=True, 
         blank=True,
         help_text="Vector de búsqueda full-text precomputado (PostgreSQL tsvector)"
     )
     
-    # CAMPO PARA EMBEDDINGS (solo si pgvector está disponible)
-    # Se añade dinámicamente más abajo
+    # CAMPO PARA EMBEDDINGS SEMÁNTICOS (pgvector - 384 dimensiones)
+    embedding = VectorField(
+        dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
+        null=True,
+        blank=True,
+        help_text="Vector de embeddings semánticos (384 dimensiones)"
+    )
     
     class Meta:
         ordering = ['-published_at']
@@ -67,18 +64,6 @@ class Article(models.Model):
 
     def __str__(self): return self.title
 
-
-# Añadir campo embedding dinámicamente solo si pgvector está disponible
-if PGVECTOR_AVAILABLE:
-    Article.add_to_class(
-        'embedding',
-        VectorField(
-            dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
-            null=True,
-            blank=True,
-            help_text="Vector de embeddings semánticos (384 dimensiones)"
-        )
-    )
 
 class NewsPreset(models.Model):
     name = models.CharField(max_length=100)

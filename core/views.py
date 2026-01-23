@@ -2,11 +2,20 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.http import HttpResponse, JsonResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import Bill, BillVersion, Event, Keyword, MonitoredMeasure, MonitoredCommission, NewsSource, Article, NewsPreset
+from .serializers import ArticleSearchResultSerializer, SearchStatsSerializer
 from .utils import fetch_latest_news, generate_ai_summary, generate_diff_html, analyze_legal_diff, check_sutra_status
+from services import search_documents, search_semantic_only, search_keyword_only, get_search_stats
 import datetime
 import icalendar
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 AVAILABLE_COMMISSIONS = [
     "Agricultura", "Asuntos del Consumidor", "Asuntos de la Mujer", "Asuntos Internos",
@@ -384,3 +393,172 @@ def calendar_feed(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+
+# ========================================
+# API DE BÚSQUEDA HÍBRIDA
+# ========================================
+
+class DocumentSearchView(APIView):
+    """
+    Vista de API para búsqueda híbrida de documentos (artículos).
+    
+    Combina búsqueda semántica (embeddings) y léxica (full-text) usando
+    el algoritmo RRF (Reciprocal Rank Fusion).
+    
+    Endpoints:
+        GET /api/search/?q=<query>
+        GET /api/search/?q=<query>&limit=10
+        GET /api/search/?q=<query>&method=hybrid|semantic|keyword
+    
+    Parámetros:
+        - q (requerido): Texto de búsqueda
+        - limit (opcional): Número de resultados (default: 20, max: 100)
+        - method (opcional): Método de búsqueda - "hybrid", "semantic", "keyword" (default: "hybrid")
+    
+    Respuesta exitosa (200):
+        {
+            "success": true,
+            "query": "ley de transparencia",
+            "method": "hybrid",
+            "count": 15,
+            "results": [
+                {
+                    "id": 123,
+                    "title": "...",
+                    "snippet": "...",
+                    "url": "...",
+                    "published_date": "2026-01-20T10:30:00Z",
+                    "source": "Metro PR",
+                    "ai_summary": "...",
+                    "rrf_score": 0.0312,
+                    "semantic_rank": 5,
+                    "keyword_rank": 2
+                },
+                ...
+            ]
+        }
+    
+    Respuesta con error (400):
+        {
+            "success": false,
+            "error": "El parámetro 'q' es requerido"
+        }
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Procesa solicitud GET de búsqueda.
+        """
+        # Obtener parámetros
+        query = request.query_params.get('q', '').strip()
+        limit = request.query_params.get('limit', '20')
+        method = request.query_params.get('method', 'hybrid').lower()
+        
+        # Validar query
+        if not query:
+            return Response({
+                'success': False,
+                'error': "El parámetro 'q' es requerido"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validar limit
+        try:
+            limit = int(limit)
+            if limit < 1:
+                limit = 20
+            elif limit > 100:
+                limit = 100
+        except ValueError:
+            limit = 20
+        
+        # Validar method
+        if method not in ['hybrid', 'semantic', 'keyword']:
+            return Response({
+                'success': False,
+                'error': "El parámetro 'method' debe ser: 'hybrid', 'semantic' o 'keyword'"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Ejecutar búsqueda según el método
+            logger.info(f"Búsqueda {method}: '{query}' (limit={limit})")
+            
+            if method == 'semantic':
+                results = search_semantic_only(query, limit=limit)
+            elif method == 'keyword':
+                results = search_keyword_only(query, limit=limit)
+            else:  # hybrid
+                results = search_documents(query, limit=limit)
+            
+            # Serializar resultados
+            serializer = ArticleSearchResultSerializer(results, many=True)
+            
+            return Response({
+                'success': True,
+                'query': query,
+                'method': method,
+                'count': len(results),
+                'results': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except ValueError as e:
+            # Error de validación (query vacía, etc.)
+            logger.warning(f"Error de validación en búsqueda: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            # Error interno
+            logger.error(f"Error en búsqueda: {e}", exc_info=True)
+            return Response({
+                'success': False,
+                'error': f"Error interno del servidor: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SearchStatsView(APIView):
+    """
+    Vista de API para obtener estadísticas de búsqueda.
+    
+    Endpoint:
+        GET /api/search/stats/
+    
+    Respuesta:
+        {
+            "success": true,
+            "stats": {
+                "total_articles": 1500,
+                "articles_with_embedding": 1450,
+                "articles_with_search_vector": 1500,
+                "articles_searchable": 1450,
+                "embedding_coverage": 96.67,
+                "search_vector_coverage": 100.0
+            }
+        }
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Obtiene estadísticas de cobertura de búsqueda.
+        """
+        try:
+            stats = get_search_stats()
+            serializer = SearchStatsSerializer(stats)
+            
+            return Response({
+                'success': True,
+                'stats': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas: {e}", exc_info=True)
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

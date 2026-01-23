@@ -29,4 +29,8 @@ urlpatterns = [
     path('api/presets/<int:preset_id>/delete/', views.api_delete_preset, name='api_delete_preset'),
     path('api/presets/<int:preset_id>/toggle/', views.api_toggle_preset, name='api_toggle_preset'),
     path('api/generate-keywords/', views.generate_keywords_ai, name='generate_keywords_ai'),
+    
+    # --- API DE BÚSQUEDA HÍBRIDA ---
+    path('api/search/', views.DocumentSearchView.as_view(), name='api_search'),
+    path('api/search/stats/', views.SearchStatsView.as_view(), name='api_search_stats'),
 ]

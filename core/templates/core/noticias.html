@@ -5,22 +5,105 @@
     <div class="max-w-7xl mx-auto p-6">
         
         <!-- Header -->
-        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-4xl font-bold text-gray-800 mb-2">Monitor de Noticias</h1>
-                <p class="text-gray-600">Inteligencia artificial aplicada a medios locales</p>
+        <div class="mb-8">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold text-gray-800 mb-2">Monitor de Noticias</h1>
+                    <p class="text-gray-600">Inteligencia artificial aplicada a medios locales</p>
+                </div>
+                <div class="flex gap-3">
+                    <a href="{% url 'sync_noticias' %}" 
+                       class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                        <i class="fas fa-sync-alt mr-2"></i> 
+                        Actualizar
+                    </a>
+                    <a href="{% url 'configuracion' %}" 
+                       class="inline-flex items-center bg-white border-2 border-gray-300 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                        <i class="fas fa-cog mr-2"></i> 
+                        Configuración
+                    </a>
+                </div>
             </div>
-            <div class="flex gap-3">
-                <a href="{% url 'sync_noticias' %}" 
-                   class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
-                    <i class="fas fa-sync-alt mr-2"></i> 
-                    Actualizar
-                </a>
-                <a href="{% url 'configuracion' %}" 
-                   class="inline-flex items-center bg-white border-2 border-gray-300 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
-                    <i class="fas fa-cog mr-2"></i> 
-                    Configuración
-                </a>
+            
+            <!-- Barra de búsqueda siempre visible -->
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <form method="GET" action="{% url 'noticias' %}" class="space-y-4">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <!-- Campo de búsqueda -->
+                        <div class="flex-1">
+                            <div class="relative">
+                                <input type="text" 
+                                       name="q" 
+                                       value="{{ query }}"
+                                       placeholder="🔍 Buscar con IA semántica, palabras clave o búsqueda híbrida..." 
+                                       class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all">
+                                <i class="fas fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Selector de método -->
+                        <div class="flex-shrink-0">
+                            <select name="method" 
+                                    class="w-full md:w-auto px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white">
+                                <option value="hybrid" {% if search_method == 'hybrid' %}selected{% endif %}>
+                                    🔄 Híbrida (RRF)
+                                </option>
+                                <option value="semantic" {% if search_method == 'semantic' %}selected{% endif %}>
+                                    🧠 Semántica (IA)
+                                </option>
+                                <option value="keyword" {% if search_method == 'keyword' %}selected{% endif %}>
+                                    📝 Palabras clave
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <!-- Botón buscar -->
+                        <button type="submit" 
+                                class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                            <i class="fas fa-search mr-2"></i>
+                            Buscar
+                        </button>
+                        
+                        <!-- Limpiar búsqueda -->
+                        {% if query %}
+                        <a href="{% url 'noticias' %}" 
+                           class="inline-flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                            <i class="fas fa-times mr-2"></i>
+                            Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Estadísticas de búsqueda -->
+                    {% if search_stats and query %}
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-600 pt-2 border-t border-gray-200">
+                        <div>
+                            <i class="fas fa-database mr-1 text-blue-500"></i>
+                            <strong>{{ search_stats.total_articles }}</strong> artículos totales
+                        </div>
+                        <div>
+                            <i class="fas fa-vector-square mr-1 text-green-500"></i>
+                            <strong>{{ search_stats.articles_with_embedding }}</strong> con embeddings ({{ search_stats.embedding_coverage|floatformat:1 }}%)
+                        </div>
+                        <div>
+                            <i class="fas fa-search mr-1 text-purple-500"></i>
+                            <strong>{{ search_stats.articles_with_search_vector }}</strong> indexados ({{ search_stats.search_vector_coverage|floatformat:1 }}%)
+                        </div>
+                        {% if query %}
+                        <div class="ml-auto">
+                            {% if search_method == "hybrid" %}
+                            <i class="fas fa-filter mr-1 text-purple-500"></i>
+                            {% elif search_method == "semantic" %}
+                            <i class="fas fa-brain mr-1 text-purple-500"></i>
+                            {% elif search_method == "keyword" %}
+                            <i class="fas fa-font mr-1 text-purple-500"></i>
+                            {% endif %}
+                            Mostrando: <strong>{{ articles|length }}</strong> resultados con <span class="text-blue-600 font-semibold">{{ search_method|title }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </form>
             </div>
         </div>
 
@@ -96,6 +179,28 @@
                                     <i class="far fa-clock mr-1"></i>
                                     {{ article.published_at|timesince }} atrás
                                 </span>
+                                
+                                <!-- Score de búsqueda híbrida -->
+                                {% if article.search_score %}
+                                <span class="inline-flex items-center text-xs font-bold text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full" title="Score de relevancia RRF">
+                                    <i class="fas fa-star mr-1.5"></i>
+                                    Relevancia: {{ article.search_score|floatformat:4 }}
+                                </span>
+                                {% endif %}
+                                
+                                <!-- Rankings individuales (solo en modo híbrido) -->
+                                {% if article.semantic_rank and article.keyword_rank %}
+                                <span class="inline-flex items-center text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full" title="Posición en búsqueda semántica">
+                                    <i class="fas fa-brain mr-1"></i>
+                                    Sem: #{{ article.semantic_rank }}
+                                </span>
+                                <span class="inline-flex items-center text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full" title="Posición en búsqueda léxica">
+                                    <i class="fas fa-font mr-1"></i>
+                                    Lex: #{{ article.keyword_rank }}
+                                </span>
+                                {% endif %}
+                                
+                                <!-- Score de relevancia (sistema antiguo) -->
                                 {% if article.relevance_score > 0 %}
                                 <span class="inline-flex items-center text-xs font-bold 
                                     {% if article.relevance_score >= 70 %}text-green-700 bg-green-100

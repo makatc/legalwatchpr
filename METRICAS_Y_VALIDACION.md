@@ -364,17 +364,45 @@ train_loss = losses.CosineSimilarityLoss(model)
 model.fit(train_objectives=[(train_dataloader, train_loss)])
 ```
 
-#### 2. Re-ranking con Modelo Más Potente
-```python
-# Paso 1: RRF (rápido, top 20)
-candidates = search_documents(query, limit=20)
+#### 2. Re-ranking con Cross-Encoders
 
-# Paso 2: Re-rank con modelo grande (solo top 20)
+**Arquitectura Actual: Bi-Encoder**
+
+El sistema actual utiliza una arquitectura "Bi-Encoder" donde la consulta y el documento se vectorizan por separado. Esto es extremadamente rápido (87ms para búsqueda semántica) pero pierde matices de interacción directa entre las palabras de la consulta y el documento.
+
+**Evolución Propuesta: Pipeline de Dos Etapas**
+
+Para casos que requieran máxima precisión (ej: investigación legal de jurisprudencia específica), se puede implementar un paso adicional de Re-Ranking:
+
+```python
+# Paso 1: RRF recupera 50 candidatos (rápido, ~100ms)
+candidates = search_documents(query, limit=50)
+
+# Paso 2: Cross-Encoder reordena los 50 candidatos (más lento pero preciso)
 from sentence_transformers import CrossEncoder
 reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L6-v2')
+
+# El Cross-Encoder recibe consulta y documento JUNTOS como input
+# Captura interacciones bidireccionales entre términos
 scores = reranker.predict([(query, c['snippet']) for c in candidates])
+
+# Re-ordenar por scores del Cross-Encoder
 reranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+final_results = [doc for doc, score in reranked[:20]]
 ```
+
+**Trade-offs:**
+- ✅ **Ventaja:** Mejora drástica en relevancia final (típicamente +5-10% en Precision@K)
+- ⚠️ **Costo:** Añade ~200-500ms de latencia adicional
+- 💡 **Recomendación:** Implementar solo si los tests A/B con usuarios reales lo justifican
+
+**Estado Actual:**
+Para la fase actual de LegalWatchPR, la fusión RRF representa el **equilibrio óptimo** entre:
+- Complejidad de implementación
+- Costo computacional
+- Rendimiento (100% Precision@1 ya alcanzado)
+
+El Re-Ranking con Cross-Encoders queda como **optimización futura** si métricas de uso real demuestran necesidad de mayor precisión en rankings de posiciones 2-10.
 
 #### 3. Query Expansion
 ```python
@@ -445,13 +473,52 @@ def search_with_ab_test(user_id, query):
    - Manning et al., "Introduction to Information Retrieval"
    - https://nlp.stanford.edu/IR-book/
 
+5. **Cross-Encoders for Re-ranking**
+   - Nogueira et al., "Passage Re-ranking with BERT"
+   - https://arxiv.org/abs/1901.04085
+
 ### Herramientas Utilizadas
 
 - **pgvector**: PostgreSQL extension for vector similarity search
-- **sentence-transformers**: Python framework for BERT-based embeddings
+- **sentence-transformers**: Python framework for BERT-based embeddings (Bi-Encoders & Cross-Encoders)
 - **Django REST Framework**: API framework
-- **PostgreSQL Full-Text Search**: Built-in search capabilities
+- **PostgreSQL Full-Text Search**: Built-in search capabilities with Spanish dictionary
 - **tqdm**: Progress bars for batch processing
+
+---
+
+## 🚀 Hoja de Ruta Técnica
+
+### Fase Actual: Sistema Production-Ready
+El sistema RRF con Bi-Encoders representa la base sólida para LegalWatchPR:
+- ✅ 100% Precision@1 alcanzado
+- ✅ Latencia semántica <100ms
+- ✅ Resistente a variaciones léxicas (embeddings)
+- ✅ Captura coincidencias exactas (full-text)
+
+### Evolución Futura: Herramienta de Investigación Legal de Vanguardia
+
+**1. Re-Ranking con Cross-Encoders (Si métricas lo justifican)**
+- Implementar pipeline de dos etapas
+- RRF recupera 50 candidatos → Cross-Encoder reordena
+- Trade-off: +200ms latencia por +5-10% precisión
+
+**2. Fine-tuning para Dominio Legal Puertorriqueño**
+- Entrenar con corpus de leyes, sentencias y jurisprudencia local
+- Mejorar comprensión de terminología legal específica
+- Objetivo: Capturar matices del derecho puertorriqueño
+
+**3. Query Expansion Semántica**
+- Expandir queries con sinónimos legales
+- Ejemplo: "ley" → ["legislación", "normativa", "estatuto"]
+- Usar embeddings para encontrar términos relacionados
+
+**4. Monitoreo y A/B Testing en Producción**
+- Métricas de uso real (CTR, time-to-relevant-result)
+- Comparación híbrida vs semántica vs re-ranking
+- Optimización basada en feedback de usuarios
+
+Esta hoja de ruta técnica proporciona una guía exhaustiva para transformar LegalWatchPR en una herramienta de investigación legal de vanguardia, resistente a las ambigüedades del lenguaje natural y precisa en los rigores de la ley.
 
 ---
 

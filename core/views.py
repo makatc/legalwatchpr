@@ -63,10 +63,54 @@ def calendario(request):
 def noticias(request):
     if NewsSource.objects.count() == 0:
         NewsSource.objects.create(name="Metro PR", url="https://www.metro.pr/arc/outboundfeeds/rss/", icon_class="fas fa-subway text-green-500")
+    
     query = request.GET.get('q', '')
-    articles = Article.objects.filter(title__icontains=query) if query else Article.objects.all()
+    search_method = request.GET.get('method', 'hybrid')  # hybrid, semantic, keyword
+    
+    # Si hay búsqueda, usar el nuevo sistema híbrido
+    if query:
+        try:
+            if search_method == 'semantic':
+                search_results = search_semantic_only(query, limit=100)
+            elif search_method == 'keyword':
+                search_results = search_keyword_only(query, limit=100)
+            else:  # hybrid (default)
+                search_results = search_documents(query, limit=100)
+            
+            # Extraer IDs de los resultados para obtener objetos Article completos
+            article_ids = [r['id'] for r in search_results]
+            articles_dict = {a.id: a for a in Article.objects.filter(id__in=article_ids)}
+            
+            # Mantener el orden de relevancia del RRF
+            articles = [articles_dict[aid] for aid in article_ids if aid in articles_dict]
+            
+            # Agregar scores a los artículos para mostrar en el template
+            for article, result in zip(articles, search_results):
+                article.search_score = result.get('rrf_score') or result.get('similarity') or result.get('rank_score')
+                article.semantic_rank = result.get('semantic_rank')
+                article.keyword_rank = result.get('keyword_rank')
+                
+        except Exception as e:
+            logger.error(f"Error en búsqueda híbrida: {e}")
+            # Fallback al método antiguo si hay error
+            articles = Article.objects.filter(title__icontains=query)[:100]
+    else:
+        # Sin búsqueda, mostrar todos los artículos recientes
+        articles = Article.objects.all().order_by('-published_at')[:100]
+    
+    # Obtener estadísticas de búsqueda
+    search_stats = None
+    if query:
+        try:
+            search_stats = get_search_stats()
+        except:
+            pass
+    
     context = {
-        'articles': articles[:100],
+        'articles': articles,
+        'query': query,
+        'search_method': search_method,
+        'search_stats': search_stats,
         'sources_count': NewsSource.objects.count(),
         'today_count': Article.objects.filter(published_at__date=datetime.date.today()).count(),
         'presets': NewsPreset.objects.all(),
@@ -136,6 +180,7 @@ def configuracion(request):
             keywords = request.POST.get('preset_keywords', '').strip()
             threshold = request.POST.get('preset_threshold', '30')
             fields = request.POST.get('preset_fields', 'title,description').strip()
+            search_method = request.POST.get('preset_search_method', 'hybrid')
             
             if name and keywords:
                 try:
@@ -150,6 +195,7 @@ def configuracion(request):
                         'keywords': keywords,
                         'threshold': threshold_int,
                         'fields_to_analyze': fields,
+                        'search_method': search_method,
                         'is_active': True
                     }
                 )
@@ -290,13 +336,18 @@ def api_add_preset(request):
         try:
             name = request.POST.get('name', '').strip()
             keywords = request.POST.get('keywords', '').strip()
+            search_method = request.POST.get('search_method', 'hybrid')
             
             if not name or not keywords:
                 return JsonResponse({'success': False, 'error': 'Nombre y keywords requeridos'}, status=400)
             
             preset, created = NewsPreset.objects.update_or_create(
                 name=name,
-                defaults={'keywords': keywords, 'is_active': True}
+                defaults={
+                    'keywords': keywords,
+                    'search_method': search_method,
+                    'is_active': True
+                }
             )
             
             return JsonResponse({
@@ -306,6 +357,7 @@ def api_add_preset(request):
                     'id': preset.id,
                     'name': preset.name,
                     'keywords': preset.keywords,
+                    'search_method': preset.search_method,
                     'is_active': preset.is_active
                 }
             })

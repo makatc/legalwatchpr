@@ -66,6 +66,12 @@ class Article(models.Model):
 
 
 class NewsPreset(models.Model):
+    SEARCH_METHOD_CHOICES = [
+        ('hybrid', 'Búsqueda Híbrida (RRF)'),
+        ('semantic', 'Búsqueda Semántica (IA)'),
+        ('keyword', 'Búsqueda por Palabras Clave'),
+    ]
+    
     name = models.CharField(max_length=100)
     keywords = models.TextField(help_text="Separadas por coma")
     threshold = models.IntegerField(
@@ -76,6 +82,12 @@ class NewsPreset(models.Model):
         max_length=100,
         default="title,description",
         help_text="Campos a analizar separados por coma: title, description"
+    )
+    search_method = models.CharField(
+        max_length=20,
+        choices=SEARCH_METHOD_CHOICES,
+        default='hybrid',
+        help_text="Método de búsqueda: híbrida (RRF), semántica (IA) o por palabras clave"
     )
     is_active = models.BooleanField(default=True)
 

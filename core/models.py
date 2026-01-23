@@ -6,7 +6,7 @@ from pypdf import PdfReader
 import docx  # LIBRERÍA NUEVA PARA WORD
 from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
-from pgvector.django import VectorField, HnswIndex
+# from pgvector.django import VectorField, HnswIndex
 
 # --- 1. GESTIÓN DE NOTICIAS ---
 class NewsSource(models.Model):
@@ -40,12 +40,12 @@ class Article(models.Model):
     )
     
     # CAMPO PARA EMBEDDINGS SEMÁNTICOS (pgvector - 384 dimensiones)
-    embedding = VectorField(
-        dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
-        null=True,
-        blank=True,
-        help_text="Vector de embeddings semánticos (384 dimensiones)"
-    )
+    # embedding = VectorField(
+    #     dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
+    #     null=True,
+    #     blank=True,
+    #     help_text="Vector de embeddings semánticos (384 dimensiones)"
+    # )
     
     class Meta:
         ordering = ['-published_at']

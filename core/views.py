@@ -172,29 +172,21 @@ def api_resumir_noticia(request, article_id):
 
 @login_required
 def configuracion(request):
+    """Configuración SOLO para Noticias (NewsPreset, NewsSource)"""
     if request.method == 'POST':
-        if 'add_keyword' in request.POST:
-            term = request.POST.get('term', '').strip()
-            if term: Keyword.objects.get_or_create(term=term)
-        elif 'add_measure' in request.POST:
-            sutra_id = request.POST.get('sutra_id', '').strip()
-            if sutra_id: MonitoredMeasure.objects.get_or_create(sutra_id=sutra_id)
-        elif 'add_commission' in request.POST:
-            name = request.POST.get('commission_name')
-            if name: MonitoredCommission.objects.get_or_create(name=name)
-        elif 'add_preset' in request.POST:
+        if 'add_preset' in request.POST:
             name = request.POST.get('preset_name', '').strip()
             keywords = request.POST.get('preset_keywords', '').strip()
-            threshold = request.POST.get('preset_threshold', '30')
+            threshold = request.POST.get('preset_threshold', '15')
             fields = request.POST.get('preset_fields', 'title,description').strip()
             search_method = request.POST.get('preset_search_method', 'hybrid')
             
             if name and keywords:
                 try:
                     threshold_int = int(threshold)
-                    threshold_int = max(0, min(100, threshold_int))  # Limitar entre 0-100
+                    threshold_int = max(0, min(100, threshold_int))
                 except:
-                    threshold_int = 30
+                    threshold_int = 15
                 
                 NewsPreset.objects.update_or_create(
                     name=name,
@@ -207,6 +199,18 @@ def configuracion(request):
                     }
                 )
         
+        return redirect('configuracion')
+
+    context = {
+        'sources': NewsSource.objects.all().order_by('name'),
+        'presets': NewsPreset.objects.all().order_by('name'),
+    }
+    return render(request, 'core/configuracion.html', context)
+
+@login_required
+def dashboard_configuracion(request):
+    """Configuración SOLO para Dashboard SUTRA (MonitoredMeasure, MonitoredCommission)"""
+    if request.method == 'POST':
         # Agregar medida monitoreada
         if 'add_measure' in request.POST:
             measure_id = request.POST.get('measure_id', '').strip()
@@ -243,17 +247,14 @@ def configuracion(request):
                     }
                 )
         
-        return redirect('configuracion')
+        return redirect('dashboard_configuracion')
 
     context = {
-        'keywords': Keyword.objects.all().order_by('term'),
         'monitored_measures': MonitoredMeasure.objects.all().order_by('-added_at'),
         'monitored_commissions': MonitoredCommission.objects.all().order_by('name'),
-        'sources': NewsSource.objects.all().order_by('name'),
-        'presets': NewsPreset.objects.all().order_by('name'),
         'available_commissions': sorted(AVAILABLE_COMMISSIONS),
     }
-    return render(request, 'core/configuracion.html', context)
+    return render(request, 'core/dashboard_configuracion.html', context)
 
 @login_required
 def generate_keywords_ai(request):

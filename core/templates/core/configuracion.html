@@ -5,14 +5,35 @@
     
     <div class="mb-8 flex justify-between items-center">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Configuración del Sistema</h1>
-            <p class="text-gray-500">Gestiona tus filtros de monitoreo legislativo y de prensa.</p>
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-newspaper mr-3 text-blue-600"></i>
+                Configuración de Noticias
+            </h1>
+            <p class="text-gray-500">Gestiona tus filtros inteligentes para monitoreo de prensa y noticias.</p>
         </div>
-        <a href="{% url 'noticias' %}" 
-           class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
-            <i class="fas fa-newspaper mr-2"></i> 
-            Ver Noticias
-        </a>
+        <div class="flex gap-3">
+            <a href="{% url 'noticias' %}" 
+               class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                <i class="fas fa-newspaper mr-2"></i> 
+                Ver Noticias
+            </a>
+        </div>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="mb-8 bg-gradient-to-r from-blue-100 to-indigo-100 border-l-4 border-blue-500 p-5 rounded-r-lg shadow-sm">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-2xl mr-4 mt-1"></i>
+            <div>
+                <h3 class="font-bold text-gray-800 mb-2">¿Qué puedes hacer aquí?</h3>
+                <ul class="text-sm text-gray-700 space-y-1">
+                    <li>• <strong>Crear filtros inteligentes</strong> con IA o manualmente para capturar noticias relevantes</li>
+                    <li>• <strong>Elegir método de búsqueda:</strong> Híbrida (RRF), Semántica (IA) o Palabras Clave</li>
+                    <li>• <strong>Ajustar sensibilidad</strong> (threshold) para controlar cantidad vs calidad de resultados</li>
+                    <li>• <strong>Generar automáticamente</strong> hasta 10 filtros usando inteligencia artificial</li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -438,234 +459,6 @@
                 <p class="text-sm text-gray-400 mt-2">Crea tu primer filtro usando el Generador Automático o Manual</p>
             </div>
             {% endfor %}
-        </div>
-    </div>
-
-    <!-- MONITOREO LEGISLATIVO SUTRA -->
-    <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-            <i class="fas fa-landmark mr-3 text-indigo-600"></i> 
-            Monitoreo Legislativo (SUTRA)
-        </h3>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Panel: Medidas Monitoreadas -->
-            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
-                <h4 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-file-alt mr-2 text-indigo-600"></i>
-                    Medidas Monitoreadas
-                    <span class="ml-auto text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">{{ monitored_measures|length }}</span>
-                </h4>
-
-                <form method="POST" class="mb-6">
-                    {% csrf_token %}
-                    <div class="flex gap-2">
-                        <input type="text" 
-                               name="measure_id" 
-                               placeholder="Ej: P. de la C. 1234" 
-                               class="flex-1 p-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                               required>
-                        <button type="submit" 
-                                name="add_measure"
-                                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-lg transition-colors whitespace-nowrap">
-                            <i class="fas fa-plus mr-1"></i> Agregar
-                        </button>
-                    </div>
-                    
-                    <!-- Opciones avanzadas (colapsadas por defecto) -->
-                    <details class="mt-4">
-                        <summary class="cursor-pointer text-sm text-indigo-600 hover:text-indigo-700 font-semibold">
-                            <i class="fas fa-cog mr-1"></i> Opciones Avanzadas
-                        </summary>
-                        <div class="mt-4 space-y-3 pl-4 border-l-2 border-indigo-200">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-search mr-1"></i> Palabras Clave (opcional)
-                                </label>
-                                <input type="text" 
-                                       name="measure_keywords" 
-                                       placeholder="educación, presupuesto, reforma..."
-                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-brain mr-1"></i> Método de Búsqueda
-                                </label>
-                                <select name="measure_search_method" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                    <option value="hybrid">🔄 Híbrida (Recomendado)</option>
-                                    <option value="semantic">🧠 Semántica (IA)</option>
-                                    <option value="keyword">📝 Palabras Clave</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-sliders-h mr-1"></i> Threshold: <span id="measureThresholdVal">15</span>
-                                </label>
-                                <input type="range" 
-                                       name="measure_threshold" 
-                                       min="5" 
-                                       max="50" 
-                                       value="15" 
-                                       class="w-full"
-                                       oninput="document.getElementById('measureThresholdVal').textContent = this.value">
-                            </div>
-                        </div>
-                    </details>
-                </form>
-
-                <div class="space-y-2 max-h-96 overflow-y-auto">
-                    {% for measure in monitored_measures %}
-                    <div class="bg-white p-3 rounded-lg border border-indigo-200 hover:border-indigo-400 transition-all flex items-center justify-between">
-                        <div class="flex-1">
-                            <span class="font-bold text-gray-800">{{ measure.sutra_id }}</span>
-                            {% if measure.keywords %}
-                            <p class="text-xs text-gray-500 mt-1">🔍 {{ measure.keywords|truncatewords:10 }}</p>
-                            {% endif %}
-                            <div class="flex gap-2 mt-2">
-                                <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
-                                    <i class="fas fa-sliders-h mr-1"></i>{{ measure.threshold }}
-                                </span>
-                                {% if measure.search_method == "hybrid" %}
-                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">🔄 Híbrida</span>
-                                {% elif measure.search_method == "semantic" %}
-                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">🧠 Semántica</span>
-                                {% else %}
-                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">📝 Palabras</span>
-                                {% endif %}
-                                <span class="text-xs {% if measure.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded-full">
-                                    {% if measure.is_active %}✓ Activa{% else %}✗ Inactiva{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                        <a href="{% url 'delete_item' 'measure' measure.id %}" 
-                           class="text-gray-300 hover:text-red-500 transition-colors p-2 ml-2">
-                            <i class="fas fa-trash-alt"></i>
-                        </a>
-                    </div>
-                    {% empty %}
-                    <div class="text-center py-8 bg-white rounded-lg border-2 border-dashed border-indigo-200">
-                        <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
-                        <p class="text-sm text-gray-500">No hay medidas monitoreadas</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Panel: Comisiones Monitoreadas -->
-            <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
-                <h4 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-users mr-2 text-purple-600"></i>
-                    Comisiones Monitoreadas
-                    <span class="ml-auto text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full">{{ monitored_commissions|length }}</span>
-                </h4>
-
-                <form method="POST" class="mb-6">
-                    {% csrf_token %}
-                    <div class="flex gap-2">
-                        <input type="text" 
-                               name="commission_name" 
-                               placeholder="Ej: Comisión de Educación" 
-                               class="flex-1 p-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                               required>
-                        <button type="submit" 
-                                name="add_commission"
-                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-lg transition-colors whitespace-nowrap">
-                            <i class="fas fa-plus mr-1"></i> Agregar
-                        </button>
-                    </div>
-
-                    <!-- Opciones avanzadas -->
-                    <details class="mt-4">
-                        <summary class="cursor-pointer text-sm text-purple-600 hover:text-purple-700 font-semibold">
-                            <i class="fas fa-cog mr-1"></i> Opciones Avanzadas
-                        </summary>
-                        <div class="mt-4 space-y-3 pl-4 border-l-2 border-purple-200">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-search mr-1"></i> Palabras Clave (opcional)
-                                </label>
-                                <input type="text" 
-                                       name="commission_keywords" 
-                                       placeholder="educación, presupuesto, reforma..."
-                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-brain mr-1"></i> Método de Búsqueda
-                                </label>
-                                <select name="commission_search_method" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                    <option value="hybrid">🔄 Híbrida (Recomendado)</option>
-                                    <option value="semantic">🧠 Semántica (IA)</option>
-                                    <option value="keyword">📝 Palabras Clave</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-sliders-h mr-1"></i> Threshold: <span id="commissionThresholdVal">15</span>
-                                </label>
-                                <input type="range" 
-                                       name="commission_threshold" 
-                                       min="5" 
-                                       max="50" 
-                                       value="15" 
-                                       class="w-full"
-                                       oninput="document.getElementById('commissionThresholdVal').textContent = this.value">
-                            </div>
-                        </div>
-                    </details>
-                </form>
-
-                <div class="space-y-2 max-h-96 overflow-y-auto">
-                    {% for commission in monitored_commissions %}
-                    <div class="bg-white p-3 rounded-lg border border-purple-200 hover:border-purple-400 transition-all flex items-center justify-between">
-                        <div class="flex-1">
-                            <span class="font-bold text-gray-800">{{ commission.name }}</span>
-                            {% if commission.keywords %}
-                            <p class="text-xs text-gray-500 mt-1">🔍 {{ commission.keywords|truncatewords:10 }}</p>
-                            {% endif %}
-                            <div class="flex gap-2 mt-2">
-                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                                    <i class="fas fa-sliders-h mr-1"></i>{{ commission.threshold }}
-                                </span>
-                                {% if commission.search_method == "hybrid" %}
-                                <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">🔄 Híbrida</span>
-                                {% elif commission.search_method == "semantic" %}
-                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">🧠 Semántica</span>
-                                {% else %}
-                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">📝 Palabras</span>
-                                {% endif %}
-                                <span class="text-xs {% if commission.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded-full">
-                                    {% if commission.is_active %}✓ Activa{% else %}✗ Inactiva{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                        <a href="{% url 'delete_item' 'commission' commission.id %}" 
-                           class="text-gray-300 hover:text-red-500 transition-colors p-2 ml-2">
-                            <i class="fas fa-trash-alt"></i>
-                        </a>
-                    </div>
-                    {% empty %}
-                    <div class="text-center py-8 bg-white rounded-lg border-2 border-dashed border-purple-200">
-                        <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
-                        <p class="text-sm text-gray-500">No hay comisiones monitoreadas</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Info Box -->
-        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500 p-4 rounded-r-lg">
-            <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
-                <i class="fas fa-info-circle text-indigo-500 mr-2"></i> 
-                ¿Cómo funciona el Monitoreo Legislativo?
-            </h4>
-            <ul class="text-sm text-gray-700 space-y-1">
-                <li>• <strong>Medidas:</strong> Monitorea proyectos de ley específicos por número (ej: P. de la C. 1234)</li>
-                <li>• <strong>Comisiones:</strong> Rastrea todas las medidas de una comisión legislativa</li>
-                <li>• <strong>Palabras Clave:</strong> Filtra medidas que contengan términos relevantes para ti</li>
-                <li>• <strong>Búsqueda Híbrida:</strong> Usa IA para encontrar medidas relacionadas semánticamente</li>
-            </ul>
         </div>
     </div>
 </div>

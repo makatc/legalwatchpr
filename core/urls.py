@@ -11,6 +11,7 @@ urlpatterns = [
     # --- RUTAS DEL SISTEMA ---
     path('', views.dashboard, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/configuracion/', views.dashboard_configuracion, name='dashboard_configuracion'),
     path('calendario/', views.calendario, name='calendario'),
     path('noticias/', views.noticias, name='noticias'),
     path('sync-noticias/', views.sync_noticias, name='sync_noticias'),

@@ -5,14 +5,16 @@
     
     <div class="mb-8 flex justify-between items-center">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Panel de Control</h1>
-            <p class="text-gray-500">Bienvenido a LegalWatch AI</p>
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-tachometer-alt mr-3 text-indigo-600"></i>
+                Dashboard SUTRA
+            </h1>
+            <p class="text-gray-500">Monitoreo legislativo en tiempo real</p>
         </div>
-        <a href="#config-dashboard" 
-           onclick="document.getElementById('config-dashboard').scrollIntoView({behavior: 'smooth'})"
-           class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+        <a href="{% url 'dashboard_configuracion' %}" 
+           class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
             <i class="fas fa-cog mr-2"></i> 
-            Configuración
+            Configurar Dashboard
         </a>
     </div>
 

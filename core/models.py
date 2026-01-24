@@ -163,13 +163,58 @@ class Keyword(models.Model):
     def __str__(self): return self.term
 
 class MonitoredMeasure(models.Model):
-    sutra_id = models.CharField(max_length=50) # Ej: P. de la C. 1234
+    SEARCH_METHOD_CHOICES = [
+        ('hybrid', 'Búsqueda Híbrida (RRF)'),
+        ('semantic', 'Búsqueda Semántica (IA)'),
+        ('keyword', 'Búsqueda por Palabras Clave'),
+    ]
+    
+    sutra_id = models.CharField(max_length=50)  # Ej: P. de la C. 1234
+    keywords = models.TextField(
+        help_text="Palabras clave para filtrar medidas relevantes (separadas por coma)",
+        blank=True,
+        default=""
+    )
+    threshold = models.IntegerField(
+        default=15,
+        help_text="Score mínimo de relevancia (0-100)"
+    )
+    search_method = models.CharField(
+        max_length=20,
+        choices=SEARCH_METHOD_CHOICES,
+        default='hybrid',
+        help_text="Método de búsqueda para esta medida"
+    )
+    is_active = models.BooleanField(default=True)
     added_at = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self): return self.sutra_id
 
 class MonitoredCommission(models.Model):
+    SEARCH_METHOD_CHOICES = [
+        ('hybrid', 'Búsqueda Híbrida (RRF)'),
+        ('semantic', 'Búsqueda Semántica (IA)'),
+        ('keyword', 'Búsqueda por Palabras Clave'),
+    ]
+    
     name = models.CharField(max_length=200)
+    keywords = models.TextField(
+        help_text="Palabras clave para filtrar medidas de esta comisión (separadas por coma)",
+        blank=True,
+        default=""
+    )
+    threshold = models.IntegerField(
+        default=15,
+        help_text="Score mínimo de relevancia (0-100)"
+    )
+    search_method = models.CharField(
+        max_length=20,
+        choices=SEARCH_METHOD_CHOICES,
+        default='hybrid',
+        help_text="Método de búsqueda para esta comisión"
+    )
     is_active = models.BooleanField(default=True)
+    
     def __str__(self): return self.name
 
 # --- 4. PERFILES DE USUARIO ---

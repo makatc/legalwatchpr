@@ -206,12 +206,49 @@ def configuracion(request):
                         'is_active': True
                     }
                 )
+        
+        # Agregar medida monitoreada
+        if 'add_measure' in request.POST:
+            measure_id = request.POST.get('measure_id', '').strip()
+            measure_keywords = request.POST.get('measure_keywords', '').strip()
+            measure_threshold = int(request.POST.get('measure_threshold', 15))
+            measure_search_method = request.POST.get('measure_search_method', 'hybrid')
+            
+            if measure_id:
+                MonitoredMeasure.objects.get_or_create(
+                    sutra_id=measure_id,
+                    defaults={
+                        'keywords': measure_keywords,
+                        'threshold': measure_threshold,
+                        'search_method': measure_search_method,
+                        'is_active': True
+                    }
+                )
+        
+        # Agregar comisión monitoreada
+        if 'add_commission' in request.POST:
+            commission_name = request.POST.get('commission_name', '').strip()
+            commission_keywords = request.POST.get('commission_keywords', '').strip()
+            commission_threshold = int(request.POST.get('commission_threshold', 15))
+            commission_search_method = request.POST.get('commission_search_method', 'hybrid')
+            
+            if commission_name:
+                MonitoredCommission.objects.get_or_create(
+                    name=commission_name,
+                    defaults={
+                        'keywords': commission_keywords,
+                        'threshold': commission_threshold,
+                        'search_method': commission_search_method,
+                        'is_active': True
+                    }
+                )
+        
         return redirect('configuracion')
 
     context = {
         'keywords': Keyword.objects.all().order_by('term'),
-        'measures': MonitoredMeasure.objects.all().order_by('sutra_id'),
-        'comms': MonitoredCommission.objects.all().order_by('name'),
+        'monitored_measures': MonitoredMeasure.objects.all().order_by('-added_at'),
+        'monitored_commissions': MonitoredCommission.objects.all().order_by('name'),
         'sources': NewsSource.objects.all().order_by('name'),
         'presets': NewsPreset.objects.all().order_by('name'),
         'available_commissions': sorted(AVAILABLE_COMMISSIONS),

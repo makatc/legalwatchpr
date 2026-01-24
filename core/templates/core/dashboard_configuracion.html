@@ -1,71 +1,35 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="p-8 bg-gradient-to-br from-indigo-50 to-purple-50 min-h-screen">
-    <div class="mb-10 flex justify-between items-center">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-landmark mr-3 text-indigo-600"></i>
-                Configuración SUTRA (IA + Híbrido)
-            </h1>
-            <p class="text-gray-500">Gestiona tu monitoreo legislativo usando el sistema híbrido (RRF, IA, palabras clave).</p>
-        </div>
-        <a href="{% url 'dashboard' %}" class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
-            <i class="fas fa-tachometer-alt mr-2"></i> Ver Dashboard
-        </a>
-    </div>
-
-    <!-- Asistente visual -->
-    <div class="mb-8 bg-gradient-to-r from-indigo-100 to-purple-100 border-l-4 border-indigo-500 p-5 rounded-r-lg shadow-sm">
-        <div class="flex items-start">
-            <i class="fas fa-robot text-indigo-600 text-2xl mr-4 mt-1 animate-bounce"></i>
-            <div>
-                <h3 class="font-bold text-gray-800 mb-2">¿Cómo funciona la configuración?</h3>
-                <ul class="text-sm text-gray-700 space-y-1">
-                    <li>• <strong>Monitorea medidas</strong> por número y comisiones completas.</li>
-                    <li>• <strong>Elige método:</strong> Híbrida (RRF), Semántica (IA) o Palabras Clave.</li>
-                    <li>• <strong>Filtra con palabras clave</strong> y ajusta sensibilidad (threshold).</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
+<div class="p-8 min-h-screen bg-[#f5f6fa]">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Medidas monitoreadas -->
-        <div class="bg-white rounded-xl shadow-lg border border-indigo-200 p-8">
-            <h2 class="text-xl font-bold text-gray-800 flex items-center mb-4">
-                <i class="fas fa-file-alt text-indigo-600 mr-2 text-2xl"></i> Medidas Legislativas
+        <div class="bg-white rounded-2xl shadow-md border border-indigo-100 p-8">
+            <h2 class="text-2xl font-bold text-[#3a3a4a] flex items-center mb-6">
+                <i class="fas fa-file-alt text-[#5b4bff] mr-2 text-2xl"></i> Medidas Legislativas
             </h2>
-            <form method="POST" action="{% url 'dashboard_configuracion' %}" class="space-y-4">
+            <form method="POST" action="{% url 'dashboard_configuracion' %}" class="space-y-5">
                 {% csrf_token %}
                 <input type="hidden" name="add_measure" value="1">
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Número de medida</label>
-                    <input type="text" name="measure_id" class="p-2 border-2 border-indigo-200 rounded-lg" required placeholder="Ej: P. de la C. 1234">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Palabras clave (separadas por coma)</label>
-                    <input type="text" name="measure_keywords" class="p-2 border-2 border-indigo-200 rounded-lg">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Sensibilidad (threshold 0-100)</label>
-                    <input type="number" name="measure_threshold" min="0" max="100" value="15" class="p-2 border-2 border-indigo-200 rounded-lg">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Método de búsqueda</label>
-                    <select name="measure_search_method" class="p-2 border-2 border-indigo-200 rounded-lg">
-                        <option value="hybrid">Híbrida (RRF)</option>
-                        <option value="semantic">Semántica (IA)</option>
-                        <option value="keyword">Palabras Clave</option>
-                    </select>
-                </div>
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all">Agregar Medida</button>
+                <label class="block font-semibold mb-1">Número de medida</label>
+                <input type="text" name="measure_id" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3" required placeholder="Ej: P. de la C. 1234">
+                <label class="block font-semibold mb-1">Palabras clave (separadas por coma)</label>
+                <input type="text" name="measure_keywords" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                <label class="block font-semibold mb-1">Sensibilidad (threshold 0-100)</label>
+                <input type="number" name="measure_threshold" min="0" max="100" value="15" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                <label class="block font-semibold mb-1">Método de búsqueda</label>
+                <select name="measure_search_method" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                    <option value="hybrid">Híbrida (RRF)</option>
+                    <option value="semantic">Semántica (IA)</option>
+                    <option value="keyword">Palabras Clave</option>
+                </select>
+                <button type="submit" class="w-full bg-[#5b4bff] hover:bg-[#4736d9] text-white font-bold py-3 rounded-lg shadow-md transition-all">Agregar Medida</button>
             </form>
             <div class="mt-8">
                 <h3 class="font-semibold mb-2">Medidas Monitoreadas</h3>
                 <ul class="space-y-2">
                     {% for measure in monitored_measures %}
-                        <li class="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
+                        <li class="flex items-center justify-between bg-[#f4f4ff] border border-[#e0e0f0] rounded-lg px-4 py-2">
                             <span class="font-mono">{{ measure.sutra_id }} ({{ measure.search_method|title }})</span>
                             <form method="post" action="{% url 'delete_item' 'measure' measure.id %}">{% csrf_token %}<button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></form>
                         </li>
@@ -77,44 +41,36 @@
         </div>
 
         <!-- Comisiones monitoreadas -->
-        <div class="bg-white rounded-xl shadow-lg border border-purple-200 p-8">
-            <h2 class="text-xl font-bold text-gray-800 flex items-center mb-4">
-                <i class="fas fa-users text-purple-600 mr-2 text-2xl"></i> Comisiones Legislativas
+        <div class="bg-white rounded-2xl shadow-md border border-purple-100 p-8">
+            <h2 class="text-2xl font-bold text-[#3a3a4a] flex items-center mb-6">
+                <i class="fas fa-users text-[#a259ff] mr-2 text-2xl"></i> Comisiones Legislativas
             </h2>
-            <form method="POST" action="{% url 'dashboard_configuracion' %}" class="space-y-4">
+            <form method="POST" action="{% url 'dashboard_configuracion' %}" class="space-y-5">
                 {% csrf_token %}
                 <input type="hidden" name="add_commission" value="1">
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Nombre de la comisión</label>
-                    <select name="commission_name" class="p-2 border-2 border-purple-200 rounded-lg">
-                        {% for c in available_commissions %}
-                            <option value="{{ c }}">{{ c }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Palabras clave (separadas por coma)</label>
-                    <input type="text" name="commission_keywords" class="p-2 border-2 border-purple-200 rounded-lg">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Sensibilidad (threshold 0-100)</label>
-                    <input type="number" name="commission_threshold" min="0" max="100" value="15" class="p-2 border-2 border-purple-200 rounded-lg">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="font-semibold">Método de búsqueda</label>
-                    <select name="commission_search_method" class="p-2 border-2 border-purple-200 rounded-lg">
-                        <option value="hybrid">Híbrida (RRF)</option>
-                        <option value="semantic">Semántica (IA)</option>
-                        <option value="keyword">Palabras Clave</option>
-                    </select>
-                </div>
-                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all">Agregar Comisión</button>
+                <label class="block font-semibold mb-1">Nombre de la comisión</label>
+                <select name="commission_name" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                    {% for c in available_commissions %}
+                        <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+                <label class="block font-semibold mb-1">Palabras clave (separadas por coma)</label>
+                <input type="text" name="commission_keywords" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                <label class="block font-semibold mb-1">Sensibilidad (threshold 0-100)</label>
+                <input type="number" name="commission_threshold" min="0" max="100" value="15" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                <label class="block font-semibold mb-1">Método de búsqueda</label>
+                <select name="commission_search_method" class="w-full p-3 border border-[#e0e0f0] rounded-lg mb-3">
+                    <option value="hybrid">Híbrida (RRF)</option>
+                    <option value="semantic">Semántica (IA)</option>
+                    <option value="keyword">Palabras Clave</option>
+                </select>
+                <button type="submit" class="w-full bg-[#a259ff] hover:bg-[#7c3aed] text-white font-bold py-3 rounded-lg shadow-md transition-all">Agregar Comisión</button>
             </form>
             <div class="mt-8">
                 <h3 class="font-semibold mb-2">Comisiones Monitoreadas</h3>
                 <ul class="space-y-2">
                     {% for commission in monitored_commissions %}
-                        <li class="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg px-4 py-2">
+                        <li class="flex items-center justify-between bg-[#faf4ff] border border-[#e0e0f0] rounded-lg px-4 py-2">
                             <span class="font-mono">{{ commission.name }} ({{ commission.search_method|title }})</span>
                             <form method="post" action="{% url 'delete_item' 'commission' commission.id %}">{% csrf_token %}<button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></form>
                         </li>
@@ -479,4 +435,3 @@ document.querySelectorAll('details').forEach(detail => {
     });
 });
 </script>
-{% endblock %}

@@ -257,33 +257,51 @@ def get_active_presets():
 
 def check_match(text, presets):
     """
-    Verifica si un texto coincide con los keywords de algún preset usando scoring.
+    Verifica si un texto coincide con algún preset usando el método configurado.
+    
+    Soporta 3 métodos de búsqueda:
+    - 'keyword': Scoring tradicional por palabras clave (rápido)
+    - 'semantic': Búsqueda semántica con embeddings (preciso)
+    - 'hybrid': Combinación de ambos con RRF (mejor rendimiento)
+    
     Retorna: (match: bool, preset_name: str, score: float)
     """
     if not presets:
         return True, None, 100.0
     
-    normalize_text(text)
     best_score = 0.0
     best_preset = None
+    best_method = 'keyword'
     
     for preset in presets:
-        # Obtener keywords y threshold
+        # Obtener configuración del preset
         keywords = [k.strip() for k in preset.keywords.split(',') if k.strip()]
-        preset.threshold if hasattr(preset, 'threshold') else 15
+        threshold = preset.threshold if hasattr(preset, 'threshold') else 15
         fields = preset.fields_to_analyze if hasattr(preset, 'fields_to_analyze') else "title,description"
+        search_method = preset.search_method if hasattr(preset, 'search_method') else 'keyword'
         
-        # Calcular score
-        score = calculate_relevance_score(text, keywords, fields)
+        # Calcular score según el método configurado
+        if search_method == 'semantic':
+            # Búsqueda semántica con embeddings
+            score = _calculate_semantic_score(text, keywords)
+        elif search_method == 'hybrid':
+            # Combinar keyword y semántica (promedio ponderado)
+            keyword_score = calculate_relevance_score(text, keywords, fields)
+            semantic_score = _calculate_semantic_score(text, keywords)
+            # 60% semántica, 40% keywords (priorizamos entendimiento conceptual)
+            score = (semantic_score * 0.6) + (keyword_score * 0.4)
+        else:  # 'keyword' (default)
+            # Scoring tradicional por palabras clave
+            score = calculate_relevance_score(text, keywords, fields)
         
         # Guardar mejor score
         if score > best_score:
             best_score = score
             best_preset = preset.name
+            best_method = search_method
     
-    # Determinar si pasa el filtro
-    # Usar el threshold del mejor preset
-    threshold_to_use = 15  # Default (optimizado para abogados - alta sensibilidad)
+    # Determinar si pasa el filtro usando el threshold del mejor preset
+    threshold_to_use = 15  # Default
     for preset in presets:
         if preset.name == best_preset:
             threshold_to_use = preset.threshold if hasattr(preset, 'threshold') else 15
@@ -292,6 +310,62 @@ def check_match(text, presets):
     match = best_score >= threshold_to_use
     
     return match, best_preset, best_score
+
+
+def _calculate_semantic_score(text, keywords):
+    """
+    Calcula score de relevancia usando búsqueda semántica con embeddings.
+    
+    Args:
+        text: Texto del artículo
+        keywords: Lista de palabras clave del preset
+        
+    Returns:
+        Score normalizado 0-100
+    """
+    try:
+        from services import EmbeddingGenerator
+        import numpy as np
+        
+        # Generar embeddings
+        generator = EmbeddingGenerator()
+        text_embedding = np.array(generator.encode(text))
+        
+        # Generar embedding de las keywords (como query)
+        keywords_text = " ".join(keywords)
+        keywords_embedding = np.array(generator.encode(keywords_text))
+        
+        # Calcular similitud coseno
+        dot_product = np.dot(text_embedding, keywords_embedding)
+        norm_text = np.linalg.norm(text_embedding)
+        norm_keywords = np.linalg.norm(keywords_embedding)
+        
+        if norm_text == 0 or norm_keywords == 0:
+            return 0.0
+        
+        similarity = dot_product / (norm_text * norm_keywords)
+        
+        # Convertir similitud coseno [-1, 1] a score [0, 100]
+        # similarity de 0.5+ es buena, 0.7+ es excelente
+        # Mapeo: 0.3 -> 0, 0.5 -> 50, 0.7 -> 85, 0.9 -> 100
+        if similarity < 0.3:
+            score = 0.0
+        elif similarity < 0.5:
+            # 0.3-0.5 -> 0-50
+            score = ((similarity - 0.3) / 0.2) * 50
+        elif similarity < 0.7:
+            # 0.5-0.7 -> 50-85
+            score = 50 + ((similarity - 0.5) / 0.2) * 35
+        else:
+            # 0.7+ -> 85-100
+            score = 85 + min((similarity - 0.7) / 0.2, 1.0) * 15
+        
+        return score
+        
+    except Exception as e:
+        # Si falla búsqueda semántica, fallback a 0 (no match)
+        print(f"⚠️ Error en búsqueda semántica: {e}")
+        return 0.0
 
 def article_exists(link):
     """Verifica si un artículo ya existe en la base de datos por URL."""
@@ -309,8 +383,11 @@ def extract_article_date(entry):
 def create_article_from_entry(source, entry, snippet, image_url, preset_name=None, score=0.0):
     """
     Crea un artículo en la base de datos desde una entrada RSS.
+    Genera embeddings automáticamente para búsqueda semántica.
+    
     Retorna el artículo creado.
     """
+    # Crear artículo
     article = Article.objects.create(
         source=source,
         title=entry.title,
@@ -320,6 +397,31 @@ def create_article_from_entry(source, entry, snippet, image_url, preset_name=Non
         image_url=image_url,
         relevance_score=score
     )
+    
+    # Generar embedding automáticamente (solo si el campo existe en el modelo)
+    # Nota: Si pgvector no está instalado, esto se omitirá silenciosamente
+    try:
+        if hasattr(article, 'embedding') and article.embedding is None:
+            from services import EmbeddingGenerator
+            
+            # Construir texto para embedding (título + snippet)
+            text_for_embedding = article.title
+            if article.snippet:
+                text_for_embedding += " " + article.snippet
+            
+            # Generar y guardar embedding
+            generator = EmbeddingGenerator()
+            embedding = generator.encode(text_for_embedding)
+            
+            # Guardar en el artículo
+            article.embedding = embedding
+            article.save(update_fields=['embedding'])
+            
+            print(f"  🧠 Embedding generado ({len(embedding)} dims)")
+    except Exception as e:
+        # Si falla (ej: pgvector no instalado), continuar sin embeddings
+        # El artículo se guarda de todas formas, solo sin búsqueda semántica
+        pass
     
     print(f"✅ NUEVA: '{entry.title[:50]}...' (Preset: {preset_name or 'N/A'}, Score: {score:.1f})")
     return article

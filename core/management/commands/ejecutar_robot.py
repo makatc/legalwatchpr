@@ -110,15 +110,27 @@ class Command(BaseCommand):
 
                 # Fase 7: Análisis de IA (Gemini)
                 try:
-                    result = analyze_bill_relevance(bill)
-                    if result and isinstance(result, dict):
-                        score = int(result.get('score', 0))
-                        analysis = result.get('analysis', '')
-                        bill.ai_score = score
-                        bill.ai_analysis = analysis
-                        bill.relevance_why = (analysis[:500] if analysis else '')
-                        bill.save(update_fields=['ai_score', 'ai_analysis', 'relevance_why'])
-                        self.stdout.write(f"  🤖 AI score: {score}")
+                    # Avoid duplicate AI calls: if already has a positive ai_score, skip.
+                    try:
+                        existing_score = int(getattr(bill, 'ai_score', 0) or 0)
+                    except Exception:
+                        existing_score = 0
+
+                    ai_called = False
+                    if existing_score > 0:
+                        self.stdout.write("  ⏩ Saltando IA (ya analizado)")
+                    else:
+                        self.stdout.write("  🤖 Analizando con IA...")
+                        result = analyze_bill_relevance(bill)
+                        ai_called = True
+                        if result and isinstance(result, dict):
+                            score = int(result.get('score', 0))
+                            analysis = result.get('analysis', '')
+                            bill.ai_score = score
+                            bill.ai_analysis = analysis
+                            bill.relevance_why = (analysis[:500] if analysis else '')
+                            bill.save(update_fields=['ai_score', 'ai_analysis', 'relevance_why'])
+                            self.stdout.write(f"  🤖 AI score: {score}")
                 except Exception as e:
                     logger.error("AI analysis failed for %s: %s", bill.number, e, exc_info=True)
 
@@ -130,7 +142,15 @@ class Command(BaseCommand):
                 error_count += 1
 
             # Rate limiting to avoid overwhelming SUTRA server
-            time.sleep(1)
+            try:
+                if 'ai_called' in locals() and ai_called:
+                    self.stdout.write("  ⏳ Pausa de seguridad (10s) para cuidar la cuota...")
+                    time.sleep(10)
+                else:
+                    time.sleep(1)
+            except Exception:
+                # Fallback single-second wait on any unexpected issue
+                time.sleep(1)
             self.stdout.write("-" * 80)
 
         # Final summary

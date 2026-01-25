@@ -5,13 +5,15 @@ from typing import Dict, List, Any
 
 from dotenv import load_dotenv
 import google.generativeai as genai
+from django.conf import settings
+from google.api_core.exceptions import ResourceExhausted, PermissionDenied
 
-# Load environment from the absolute path provided
+# Load environment from the absolute path provided (keeps backward compatibility)
 load_dotenv(r"C:\Users\becof\vs\legalwatchpr\.env")
 
-# Configure genai with API key
-if os.getenv("GOOGLE_API_KEY"):
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Configure genai with API key from Django settings when available
+if getattr(settings, "GOOGLE_API_KEY", None):
+    genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +108,19 @@ def generate_ai_summary(article_id):
     from core.models import Article
     try:
         article = Article.objects.get(id=article_id)
-        if not os.getenv("GOOGLE_API_KEY"):
+        if not getattr(settings, "GOOGLE_API_KEY", None):
             return "Error: API Key missing."
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3-flash')
         prompt = f"Resume esta noticia para un abogado: {article.title}. Contenido: {article.snippet[:2000]}"
-        response = model.generate_content(prompt)
-        article.ai_summary = response.text
+        try:
+            response = model.generate_content(prompt)
+        except ResourceExhausted:
+            logger.warning("generate_ai_summary: quota exhausted")
+            return "Error: quota exhausted"
+        article.ai_summary = getattr(response, 'text', str(response))
         article.save()
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -136,26 +142,44 @@ def analyze_bill_relevance(bill):
     Returns {'score': int, 'analysis': str} or raises/returns None on failure.
     """
     try:
-        if not os.getenv("GOOGLE_API_KEY"):
+        if not getattr(settings, "GOOGLE_API_KEY", None):
             logger.warning("GOOGLE_API_KEY not configured for analyze_bill_relevance")
             return {"score": 0, "analysis": "API key missing"}
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
+        # Skip external API call if already analyzed
+        try:
+            existing_score = int(getattr(bill, 'ai_score', 0) or 0)
+        except Exception:
+            existing_score = 0
+        if existing_score > 0:
+            return {"score": existing_score, "analysis": getattr(bill, 'ai_analysis', ''), "skipped": True}
+
+        # Use Gemini 3 Flash explicitly
+        model = genai.GenerativeModel('gemini-3-flash')
+
         title = getattr(bill, 'title', '')
         number = getattr(bill, 'number', '')
         prompt = (
             f"Analyze this Puerto Rico legislative measure: {title}. "
-            "Return ONLY a JSON object with two keys: 'score' (integer 1-10) and 'reason' (max 2 sentences). "
-            "No markdown, no extra text."
+            "Return ONLY a JSON object with two keys: 'score' (integer 1-10) and 'reason' (max 2 sentences)."
         )
 
         generation_config = {
             "response_mime_type": "application/json"
         }
 
-        response = model.generate_content(prompt, generation_config=generation_config)
-        text = response.text if hasattr(response, 'text') else str(response)
+        print(f"--- 🧠 Calling Gemini 3 Flash for: {number} ---")
+
+        try:
+            response = model.generate_content(prompt, generation_config=generation_config)
+            text = response.text if hasattr(response, 'text') else str(response)
+        except ResourceExhausted:
+            logger.warning("analyze_bill_relevance: quota exhausted for %s", number)
+            return {"score": 0, "analysis": "Quota exhausted", "skipped": False}
+        except PermissionDenied as e:
+            # Avoid printing full stack or sensitive details; log concise message and continue.
+            logger.warning("analyze_bill_relevance permission denied for %s: %s", number, str(e))
+            return {"score": 0, "analysis": "Permission denied - invalid API key", "skipped": False}
 
         # Try to parse JSON response
         import re
@@ -166,12 +190,12 @@ def analyze_bill_relevance(bill):
             analysis = data.get('reason', text)[:500]
         except (json.JSONDecodeError, ValueError, KeyError):
             # Fallback: try to extract a score (1-10) from the response
-            m = re.search(r"(\b[1-9]\b|10)", text)
+            m = re.search(r"(\\b[1-9]\\b|10)", text)
             score = int(m.group(0)) if m else 0
             analysis = " ".join(text.split())[:500]
 
         return {"score": score, "analysis": analysis}
     except Exception as e:
-        logger.error("analyze_bill_relevance failed: %s", e)
-        return {"score": 0, "analysis": "Error de conexión con IA"}
-        return {"score": 0, "analysis": "AI Pending"}
+        # Log concise error without exc_info to avoid leaking sensitive details
+        logger.error("analyze_bill_relevance unexpected error: %s", str(e))
+        return {"score": 0, "analysis": "API Error"}

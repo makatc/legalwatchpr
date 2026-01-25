@@ -1,0 +1,145 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div class="max-w-7xl mx-auto p-6">
+    
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-800 mb-2">Monitor de Noticias</h1>
+                <p class="text-gray-600">Inteligencia artificial aplicada a medios locales</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'sync_noticias' %}" 
+                   class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                    <i class="fas fa-sync-alt mr-2"></i> 
+                    Actualizar
+                </a>
+                <a href="{% url 'dashboard_configuracion' %}" 
+                   class="inline-flex items-center bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                    <i class="fas fa-cog mr-2"></i>
+                    Configurar Noticias
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <form method="GET" action="{% url 'noticias' %}" class="space-y-4">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <input type="text" name="q" value="{{ query }}" placeholder="🔍 Buscar con IA semántica, palabras clave o búsqueda híbrida..." class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all">
+                            <i class="fas fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <select name="method" class="w-full md:w-auto px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white">
+                            <option value="hybrid" {% if search_method == 'hybrid' %}selected{% endif %}>🔄 Híbrida (RRF)</option>
+                            <option value="semantic" {% if search_method == 'semantic' %}selected{% endif %}>🧠 Semántica (IA)</option>
+                            <option value="keyword" {% if search_method == 'keyword' %}selected{% endif %}>📝 Palabras clave</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                        <i class="fas fa-search mr-2"></i> Buscar
+                    </button>
+                    {% if query %}
+                    <a href="{% url 'noticias' %}" class="inline-flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                        <i class="fas fa-times mr-2"></i> Limpiar
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Noticias de Hoy</p>
+                    <h3 class="text-3xl font-bold text-blue-600">{{ today_count }}</h3>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full"><i class="fas fa-newspaper text-blue-600 text-xl"></i></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Fuentes Activas</p>
+                    <h3 class="text-3xl font-bold text-green-600">{{ sources_count }}</h3>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full"><i class="fas fa-rss text-green-600 text-xl"></i></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Total Artículos</p>
+                    <h3 class="text-3xl font-bold text-purple-600">{{ articles|length }}</h3>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full"><i class="fas fa-file-alt text-purple-600 text-xl"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        {% for article in articles %}
+        <div class="border-b border-gray-100 last:border-b-0 hover:bg-blue-50/50 transition-all duration-200 group">
+            <div class="p-6">
+                <div class="flex gap-5 items-start">
+                    <div class="flex-shrink-0 hidden sm:block">
+                        {% if article.image_url %}
+                        <img src="{{ article.image_url }}" alt="{{ article.title }}" class="w-32 h-32 object-cover rounded-lg shadow-sm">
+                        {% else %}
+                        <div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-newspaper text-gray-400 text-3xl"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-3 mb-2">
+                            <span class="text-xs font-bold text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full">
+                                {{ article.source.name }}
+                            </span>
+                            <span class="text-xs text-gray-500">
+                                {{ article.published_at|timesince }} atrás
+                            </span>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-gray-900 mb-3">
+                            <a href="{{ article.link }}" target="_blank" class="hover:text-blue-600">{{ article.title }}</a>
+                        </h3>
+
+                        <p class="text-gray-600 text-sm mb-3">
+                            {{ article.snippet|striptags|truncatewords:30 }}
+                        </p>
+
+                        <div class="flex gap-2">
+                            <button onclick="toggleFullContent({{ article.id }})" class="text-xs font-semibold bg-blue-600 text-white px-4 py-2 rounded-lg">Leer Completo</button>
+                            <a href="{{ article.link }}" target="_blank" class="text-xs font-semibold bg-gray-100 text-gray-700 px-4 py-2 rounded-lg">Ver Original</a>
+                        </div>
+                        
+                        <div id="content-{{ article.id }}" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-sm">
+                            {{ article.snippet|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="p-16 text-center">
+            <h3 class="text-xl font-bold text-gray-700">No hay noticias disponibles</h3>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleFullContent(id) {
+    const div = document.getElementById(`content-${id}`);
+    div.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

@@ -1,123 +1,693 @@
-{% extends 'core/base.html' %}
-{% load static %}
+{% extends 'core/base.html' %} 
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+<div class="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    
+    <div class="mb-8 flex justify-between items-center">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Perfil de Interés</h1>
-            <p class="text-gray-600">Configura qué temas debe monitorear la IA en Noticias y SUTRA.</p>
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-newspaper mr-3 text-blue-600"></i>
+                Configuración de Noticias
+            </h1>
+            <p class="text-gray-500">Gestiona tus filtros inteligentes para monitoreo de prensa y noticias.</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="saveAllConfigs()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition shadow-lg">
-                <i class="fas fa-save mr-2"></i> Guardar Todo
-            </button>
+        <div class="flex gap-3">
+            <a href="{% url 'noticias' %}" 
+               class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                <i class="fas fa-newspaper mr-2"></i> 
+                Ver Noticias
+            </a>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-2 space-y-8">
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-blue-500">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <i class="fas fa-brain text-blue-500 mr-2"></i> 1. ¿Qué quieres monitorear?
+    <!-- Info Banner -->
+    <div class="mb-8 bg-gradient-to-r from-blue-100 to-indigo-100 border-l-4 border-blue-500 p-5 rounded-r-lg shadow-sm">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-2xl mr-4 mt-1"></i>
+            <div>
+                <h3 class="font-bold text-gray-800 mb-2">¿Qué puedes hacer aquí?</h3>
+                <ul class="text-sm text-gray-700 space-y-1">
+                    <li>• <strong>Crear filtros inteligentes</strong> con IA o manualmente para capturar noticias relevantes</li>
+                    <li>• <strong>Elegir método de búsqueda:</strong> Híbrida (RRF), Semántica (IA) o Palabras Clave</li>
+                    <li>• <strong>Ajustar sensibilidad</strong> (threshold) para controlar cantidad vs calidad de resultados</li>
+                    <li>• <strong>Generar automáticamente</strong> hasta 10 filtros usando inteligencia artificial</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- GENERADOR AUTOMÁTICO CON IA -->
+        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg border border-purple-200 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-robot text-purple-600 mr-2 text-2xl"></i> 
+                    <span class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Generador Automático IA
+                    </span>
                 </h2>
-                <p class="text-sm text-gray-500 mb-4">Describe los temas en lenguaje natural. La IA generará las palabras clave automáticamente.</p>
-                
-                <div class="space-y-4">
-                    <textarea id="ai_topics" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                        placeholder="Ej: Proyectos de ley sobre energía renovable, cambios en el sistema contributivo, noticias sobre la infraestructura eléctrica..."></textarea>
-                    
-                    <button onclick="generateKeywords()" id="btn-generate" class="w-full bg-gray-100 hover:bg-gray-200 text-blue-700 font-bold py-3 rounded-lg border-2 border-dashed border-blue-300 transition flex justify-center items-center">
-                        <i class="fas fa-magic mr-2"></i> Generar Palabras Clave con IA
-                    </button>
-                </div>
+                <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                    ✨ NUEVO
+                </span>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-purple-500">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <i class="fas fa-cogs text-purple-500 mr-2"></i> 2. Configuración de Inteligencia
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg border-2 border-purple-200 p-5 mb-6">
+                <div class="flex items-start mb-4">
+                    <i class="fas fa-lightbulb text-yellow-500 text-2xl mr-3 mt-1"></i>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Método de Búsqueda</label>
-                        <select id="search_method" class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500">
-                            <option value="hybrid">Híbrido (IA + Texto - Recomendado)</option>
-                            <option value="semantic">Semántico (Solo IA)</option>
-                            <option value="keyword">Léxico (Solo Palabras)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Sensibilidad (Umbral: <span id="val_threshold">15</span>)</label>
-                        <input type="range" id="threshold" min="0" max="100" value="15" 
-                            oninput="document.getElementById('val_threshold').innerText = this.value"
-                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
-                        <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>Más resultados</span>
-                            <span>Más precisos</span>
+                        <h3 class="font-bold text-gray-800 mb-2">¿Cómo funciona?</h3>
+                        <p class="text-sm text-gray-600 mb-3">Ingresa hasta <strong>10 temas</strong> (uno por línea) y la IA generará automáticamente 10-15 palabras clave relevantes para cada uno.</p>
+                        <div class="bg-purple-50 rounded p-3 text-xs text-gray-700">
+                            <strong>Ejemplo:</strong><br>
+                            • Educación Pública<br>
+                            • Junta de Control Fiscal<br>
+                            • Salud<br>
+                            • Energía Renovable
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="space-y-8">
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-500">
-                <h2 class="text-lg font-bold mb-4 flex items-center">
-                    <i class="fas fa-rss text-green-500 mr-2"></i> Fuentes de Noticias
-                </h2>
-                <div id="sources_list" class="space-y-3 mb-4">
-                    {% for source in sources %}
-                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <span class="text-sm font-medium">{{ source.name }}</span>
-                        <input type="checkbox" {% if source.is_active %}checked{% endif %} class="w-4 h-4 text-green-600">
-                    </div>
-                    {% endfor %}
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    <i class="fas fa-list-ul mr-1"></i> Ingresa tus temas (máximo 10)
+                </label>
+                <textarea id="aiTopicsInput" 
+                          rows="8" 
+                          placeholder="Educación Pública&#10;Junta de Control Fiscal&#10;Salud&#10;Energía Renovable&#10;Seguridad Pública"
+                          class="w-full p-4 border-2 border-purple-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all resize-none font-mono"></textarea>
+                <div class="flex justify-between mt-2">
+                    <span id="topicCounter" class="text-xs text-gray-500">0 temas ingresados</span>
+                    <span class="text-xs text-purple-600 font-semibold">Máximo: 10</span>
                 </div>
-                <button class="text-sm text-blue-600 hover:underline"><i class="fas fa-plus mr-1"></i> Añadir fuente RSS</button>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-red-500">
-                <h2 class="text-lg font-bold mb-4 flex items-center">
-                    <i class="fas fa-bell text-red-500 mr-2"></i> Notificaciones
-                </h2>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Webhook URL</label>
-                <input type="url" placeholder="https://discord.com/api/webhooks/..." class="w-full p-2 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-red-500">
+            <button onclick="generateWithAI()" 
+                    id="generateBtn"
+                    class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-xl transition-all duration-200 flex items-center justify-center">
+                <i class="fas fa-magic mr-2 animate-pulse"></i>
+                Generar Keywords con IA
+            </button>
+
+            <!-- Área de Resultados -->
+            <div id="aiResults" class="mt-6 hidden">
+                <div class="bg-white rounded-lg border-2 border-green-200 p-5">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                        Resultados Generados
+                    </h3>
+                    <div id="aiResultsContent" class="space-y-4 max-h-96 overflow-y-auto">
+                        <!-- Aquí se insertarán los resultados dinámicamente -->
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex gap-3">
+                        <button onclick="saveAllPresets()" 
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i>
+                            Guardar Todos
+                        </button>
+                        <button onclick="cancelAIResults()" 
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 rounded-lg transition-colors">
+                            <i class="fas fa-times mr-2"></i>
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            <!-- Loading State -->
+            <div id="aiLoading" class="mt-6 hidden">
+                <div class="bg-white rounded-lg border-2 border-purple-200 p-8 text-center">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent mb-4"></div>
+                    <p class="text-gray-700 font-semibold">Generando keywords con IA...</p>
+                    <p class="text-sm text-gray-500 mt-2">Esto puede tomar unos segundos</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- GENERADOR MANUAL -->
+        <div class="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl shadow-lg border border-cyan-200 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-edit text-cyan-600 mr-2 text-2xl"></i> 
+                    <span class="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                        Generador Manual
+                    </span>
+                </h2>
+                <button onclick="toggleWizard()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-question-circle text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Barra de Progreso -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-gray-600">Paso <span id="currentStepNum">1</span> de 4</span>
+                    <span class="text-xs text-gray-500"><span id="progressPercent">25</span>% completado</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+                </div>
+            </div>
+
+            <form id="wizardForm" method="POST">
+
+                <!-- Paso 3: Palabras Clave -->
+                <div id="step3" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-full mr-3">
+                                <i class="fas fa-key text-purple-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Palabras Clave</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Escribe las palabras o frases que deben aparecer en las noticias. Sepáralas con comas.</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fas fa-search mr-1"></i> Palabras que quieres monitorear
+                        </label>
+                        <textarea name="preset_keywords" 
+                                  id="presetKeywords"
+                                  rows="4" 
+                                  placeholder="Ej: legislatura, senado, cámara, proyecto de ley, gobernador..."
+                                  class="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                                  required></textarea>
+                        <p class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle mr-1"></i> Separa cada palabra con una coma</p>
+                    </div>
+
+                    <div class="bg-purple-50 border-l-4 border-purple-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-brain text-purple-500 mr-2"></i> Cómo funciona:
+                        </h4>
+                        <p class="text-sm text-gray-700 mb-2">El sistema usa <strong>inteligencia artificial</strong> para analizar las noticias. No necesitas poner todas las variaciones de una palabra.</p>
+                        <p class="text-sm text-gray-700"><strong>Ejemplo:</strong> Si pones "legislatura", también encontrará noticias con "legislativo", "legisladores", etc.</p>
+                    </div>
+                </div>
+
+                <!-- Paso 4: Método de Búsqueda -->
+                <div id="step4" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-full mr-3">
+                                <i class="fas fa-brain text-indigo-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Método de Búsqueda</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Selecciona cómo quieres que el sistema busque las noticias relevantes.</p>
+                    </div>
+
+                    <div class="space-y-4 mb-6">
+                        <label class="block cursor-pointer">
+                            <input type="radio" name="preset_search_method" value="hybrid" checked class="mr-3">
+                            <div class="inline-block bg-purple-50 border-2 border-purple-300 hover:border-purple-500 rounded-lg p-4 transition-all">
+                                <div class="flex items-start">
+                                    <i class="fas fa-filter text-purple-600 text-2xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 mb-1">🔄 Búsqueda Híbrida (RRF)</h4>
+                                        <p class="text-sm text-gray-600">Combina búsqueda semántica con IA y palabras clave exactas. <strong>Recomendado</strong> para mejores resultados.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="block cursor-pointer">
+                            <input type="radio" name="preset_search_method" value="semantic" class="mr-3">
+                            <div class="inline-block bg-indigo-50 border-2 border-indigo-300 hover:border-indigo-500 rounded-lg p-4 transition-all">
+                                <div class="flex items-start">
+                                    <i class="fas fa-brain text-indigo-600 text-2xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 mb-1">🧠 Búsqueda Semántica (IA)</h4>
+                                        <p class="text-sm text-gray-600">Usa inteligencia artificial para entender el <em>significado</em> de las noticias, no solo palabras exactas.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="block cursor-pointer">
+                            <input type="radio" name="preset_search_method" value="keyword" class="mr-3">
+                            <div class="inline-block bg-gray-50 border-2 border-gray-300 hover:border-gray-500 rounded-lg p-4 transition-all">
+                                <div class="flex items-start">
+                                    <i class="fas fa-font text-gray-600 text-2xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 mb-1">📝 Palabras Clave</h4>
+                                        <p class="text-sm text-gray-600">Búsqueda clásica por palabras exactas. Más rápido pero menos flexible.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-info-circle text-indigo-500 mr-2"></i> Comparación:
+                        </h4>
+                        <div class="text-sm text-gray-700 space-y-2">
+                            <p><strong>Híbrida:</strong> Combina lo mejor de ambos mundos. Precisión del 89.2%</p>
+                            <p><strong>Semántica:</strong> Encuentra noticias por contexto. Útil para conceptos amplios.</p>
+                            <p><strong>Palabras Clave:</strong> Búsqueda tradicional rápida y directa.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 5: Sensibilidad (Threshold) -->
+                <div id="step5" class="wizard-step hidden">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full mr-3">
+                                <i class="fas fa-sliders-h text-green-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800">Nivel de Sensibilidad</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">Ajusta qué tan estricto será el filtro al seleccionar noticias.</p>
+                    </div>
+
+                    <div class="mb-8">
+                        <label class="block text-sm font-bold text-gray-700 mb-4">
+                            <i class="fas fa-adjust mr-1"></i> Sensibilidad: <span id="thresholdLabel" class="text-blue-600">Media (15)</span>
+                        </label>
+                        
+                        <input type="range" 
+                               id="thresholdSlider" 
+                               min="5" 
+                               max="50" 
+                               value="15" 
+                               class="w-full h-3 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg appearance-none cursor-pointer slider"
+                               oninput="updateThreshold(this.value)">
+                        
+                        <div class="flex justify-between text-xs text-gray-500 mt-2">
+                            <span><i class="fas fa-filter mr-1"></i> Más Inclusivo</span>
+                            <span><i class="fas fa-search mr-1"></i> Más Selectivo</span>
+                        </div>
+                    </div>
+
+                    <div id="thresholdInfo" class="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i> Sensibilidad Media (Recomendado)
+                        </h4>
+                        <p class="text-sm text-gray-700">Este nivel es ideal para abogados. Captura noticias relevantes sin perder información importante.</p>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <div class="text-2xl mb-1">🟢</div>
+                            <p class="text-xs font-semibold text-gray-700">Alta (5-10)</p>
+                            <p class="text-xs text-gray-500">Más noticias</p>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-lg border-2 border-yellow-300">
+                            <div class="text-2xl mb-1">🟡</div>
+                            <p class="text-xs font-semibold text-gray-700">Media (15-25)</p>
+                            <p class="text-xs text-gray-500">Equilibrado</p>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-lg">
+                            <div class="text-2xl mb-1">🔴</div>
+                            <p class="text-xs font-semibold text-gray-700">Baja (30-50)</p>
+                            <p class="text-xs text-gray-500">Solo muy relevantes</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Navegación -->
+                <div class="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                    <button type="button" 
+                            id="prevBtn" 
+                            onclick="changeStep(-1)" 
+                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors hidden">
+                        <i class="fas fa-arrow-left mr-2"></i> Anterior
+                    </button>
+                    <button type="button" 
+                            id="nextBtn" 
+                            onclick="changeStep(1)" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors ml-auto">
+                        Siguiente <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                    <button type="submit" 
+                            id="submitBtn" 
+                            class="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors ml-auto hidden">
+                        <i class="fas fa-check mr-2"></i> Crear Filtro
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FILTROS ACTIVOS DE NOTICIAS -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-newspaper mr-3 text-blue-600"></i> 
+            Filtros de Noticias Activos
+            <span class="ml-3 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">{{ presets|length }} filtro{{ presets|length|pluralize }}</span>
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for preset in presets %}
+            <div class="bg-gradient-to-br from-gray-50 to-white p-4 rounded-lg hover:shadow-md border border-gray-200 hover:border-blue-300 transition-all">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800 text-base mb-1">{{ preset.name }}</h4>
+                        <p class="text-xs text-gray-500 line-clamp-2">{{ preset.keywords }}</p>
+                    </div>
+                    <a href="{% url 'delete_item' 'preset' preset.id %}" 
+                       class="text-gray-300 hover:text-red-500 transition-colors p-2 ml-2">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs mb-3">
+                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-semibold">
+                        <i class="fas fa-sliders-h mr-1"></i>{{ preset.threshold }}
+                    </span>
+                    <span class="{% if preset.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %} px-2 py-1 rounded-full font-semibold">
+                        <i class="fas {% if preset.is_active %}fa-check-circle{% else %}fa-times-circle{% endif %} mr-1"></i>
+                        {% if preset.is_active %}Activo{% else %}Inactivo{% endif %}
+                    </span>
+                    {% if preset.search_method == "hybrid" %}
+                    <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold" title="Búsqueda Híbrida con RRF">
+                        <i class="fas fa-filter mr-1"></i>Híbrida
+                    </span>
+                    {% elif preset.search_method == "semantic" %}
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-semibold" title="Búsqueda Semántica con IA">
+                        <i class="fas fa-brain mr-1"></i>Semántica
+                    </span>
+                    {% elif preset.search_method == "keyword" %}
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-semibold" title="Búsqueda por Palabras Clave">
+                        <i class="fas fa-font mr-1"></i>Palabras
+                    </span>
+                    {% endif %}
+                </div>
+                <a href="{% url 'noticias' %}?q={{ preset.keywords|urlencode }}&method={{ preset.search_method|default:'hybrid' }}" 
+                   class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors">
+                    <i class="fas fa-vial mr-1"></i> Probar Búsqueda
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 font-semibold">No tienes filtros activos</p>
+                <p class="text-sm text-gray-400 mt-2">Crea tu primer filtro usando el Generador Automático o Manual</p>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
 
+<style>
+.wizard-step {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slider personalizado */
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: none;
+}
+</style>
+
 <script>
-async function generateKeywords() {
-    const topics = document.getElementById('ai_topics').value;
-    const btn = document.getElementById('btn-generate');
+// ========== GENERADOR CON IA ==========
+let aiGeneratedResults = {};
+
+// Contador de temas
+document.getElementById('aiTopicsInput').addEventListener('input', function() {
+    const topics = this.value.trim().split('\n').filter(t => t.trim());
+    const counter = document.getElementById('topicCounter');
+    counter.textContent = `${topics.length} tema${topics.length !== 1 ? 's' : ''} ingresado${topics.length !== 1 ? 's' : ''}`;
     
-    if (!topics) return alert("Escribe algunos temas primero");
+    if (topics.length > 10) {
+        counter.classList.add('text-red-500', 'font-bold');
+        counter.textContent = `⚠️ ${topics.length} temas - Máximo 10 permitido`;
+    } else {
+        counter.classList.remove('text-red-500', 'font-bold');
+    }
+});
 
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando con IA...';
-
+async function generateWithAI() {
+    const topicsInput = document.getElementById('aiTopicsInput').value.trim();
+    
+    if (!topicsInput) {
+        alert('Por favor ingresa al menos un tema');
+        return;
+    }
+    
+    const topics = topicsInput.split('\n').filter(t => t.trim());
+    
+    if (topics.length > 10) {
+        alert('Máximo 10 temas permitidos. Actualmente tienes: ' + topics.length);
+        return;
+    }
+    
+    // Mostrar loading
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('aiLoading').classList.remove('hidden');
+    document.getElementById('aiResults').classList.add('hidden');
+    
     try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
         const response = await fetch('/api/generate-keywords/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ topics: topics })
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ topics: topicsInput })
         });
+        
         const data = await response.json();
+        
         if (data.success) {
-            alert("¡Palabras clave generadas con éxito!");
-            // Aquí podrías popular un campo oculto o mostrar las keywords detectadas
+            aiGeneratedResults = data.results;
+            displayAIResults(data.results);
+        } else {
+            alert('Error: ' + data.error);
+            document.getElementById('aiLoading').classList.add('hidden');
         }
-    } catch (e) {
-        alert("Error conectando con la IA");
+    } catch (error) {
+        console.error('Error completo:', error);
+        alert('Error generando keywords: ' + error.message);
+        document.getElementById('aiLoading').classList.add('hidden');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic mr-2"></i> Generar Palabras Clave con IA';
+        document.getElementById('generateBtn').disabled = false;
     }
 }
 
-function saveAllConfigs() {
-    alert("Configuración enviada al servidor (Simulación por ahora)");
+function displayAIResults(results) {
+    const container = document.getElementById('aiResultsContent');
+    container.innerHTML = '';
+    
+    for (const [topic, keywords] of Object.entries(results)) {
+        const keywordsText = keywords.join(', ');
+        
+        const resultCard = document.createElement('div');
+        resultCard.className = 'bg-gray-50 border border-gray-200 rounded-lg p-4';
+        resultCard.innerHTML = `
+            <div class="flex items-start justify-between mb-2">
+                <h4 class="font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-tag text-purple-500 mr-2"></i>
+                    ${topic}
+                </h4>
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                    ${keywords.length} términos
+                </span>
+            </div>
+            <textarea 
+                id="keywords-${topic.replace(/\s+/g, '-')}" 
+                class="w-full p-3 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                rows="3"
+            >${keywordsText}</textarea>
+            <div class="mt-2 flex items-center text-xs text-gray-500">
+                <i class="fas fa-edit mr-1"></i>
+                Puedes editar las palabras antes de guardar
+            </div>
+        `;
+        container.appendChild(resultCard);
+    }
+    
+    document.getElementById('aiResults').classList.remove('hidden');
+}
+
+async function saveAllPresets() {
+    const container = document.getElementById('aiResultsContent');
+    const textareas = container.querySelectorAll('textarea');
+    
+    let savedCount = 0;
+    let errors = [];
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    for (const textarea of textareas) {
+        const topic = textarea.id.replace('keywords-', '').replace(/-/g, ' ');
+        const keywords = textarea.value.trim();
+        
+        if (!keywords) continue;
+        
+        try {
+            const formData = new FormData();
+            formData.append('add_preset', 'true');
+            formData.append('preset_name', topic);
+            formData.append('preset_keywords', keywords);
+            formData.append('preset_threshold', '15');
+            formData.append('preset_fields', 'title,description');
+            formData.append('preset_search_method', 'hybrid');  // Default to hybrid for AI-generated
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            const response = await fetch('/configuracion/', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                savedCount++;
+            } else {
+                errors.push(topic);
+            }
+        } catch (error) {
+            console.error('Error guardando preset:', error);
+            errors.push(topic);
+        }
+    }
+    
+    if (errors.length > 0) {
+        alert(`Guardados: ${savedCount}\nErrores en: ${errors.join(', ')}`);
+    } else {
+        alert(`✅ ${savedCount} filtros guardados exitosamente`);
+    }
+    
+    // Recargar página para mostrar nuevos filtros
+    window.location.reload();
+}
+
+function cancelAIResults() {
+    document.getElementById('aiResults').classList.add('hidden');
+    document.getElementById('aiTopicsInput').value = '';
+    document.getElementById('topicCounter').textContent = '0 temas ingresados';
+    aiGeneratedResults = {};
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// ========== WIZARD EXISTENTE ==========
+let currentStep = 1;
+const totalSteps = 4;
+
+function changeStep(direction) {
+    // Validar campos antes de avanzar
+    if (direction === 1) {
+        if (currentStep === 2 && !document.getElementById('presetName').value) {
+            alert('Por favor ingresa un nombre para el filtro');
+            return;
+        }
+        if (currentStep === 3 && !document.getElementById('presetKeywords').value) {
+            alert('Por favor ingresa al menos una palabra clave');
+            return;
+        }
+    }
+    
+    // Ocultar paso actual
+    document.getElementById(`step${currentStep}`).classList.add('hidden');
+    
+    // Cambiar número de paso
+    currentStep += direction;
+    
+    // Mostrar nuevo paso
+    document.getElementById(`step${currentStep}`).classList.remove('hidden');
+    
+    // Actualizar barra de progreso
+    const progress = (currentStep / totalSteps) * 100;
+    document.getElementById('progressBar').style.width = progress + '%';
+    document.getElementById('progressPercent').textContent = Math.round(progress);
+    document.getElementById('currentStepNum').textContent = currentStep;
+    
+    // Mostrar/ocultar botones
+    document.getElementById('prevBtn').classList.toggle('hidden', currentStep === 1);
+    document.getElementById('nextBtn').classList.toggle('hidden', currentStep === totalSteps);
+    document.getElementById('submitBtn').classList.toggle('hidden', currentStep !== totalSteps);
+}
+
+function updateThreshold(value) {
+    document.getElementById('finalThreshold').value = value;
+    
+    let label = '';
+    let info = '';
+    let colorClass = '';
+    
+    if (value >= 5 && value <= 10) {
+        label = `Alta (${value})`;
+        info = {
+            title: 'Sensibilidad Alta',
+            desc: 'Captura la mayor cantidad de noticias posibles. Útil si no quieres perderte nada, aunque pueden aparecer algunas menos relevantes.',
+            icon: 'check-circle',
+            color: 'green'
+        };
+    } else if (value >= 11 && value <= 25) {
+        label = `Media (${value})`;
+        info = {
+            title: 'Sensibilidad Media (Recomendado)',
+            desc: 'Este nivel es ideal para abogados. Captura noticias relevantes sin perder información importante. Equilibrio perfecto entre cantidad y calidad.',
+            icon: 'check-circle',
+            color: 'green'
+        };
+    } else {
+        label = `Baja (${value})`;
+        info = {
+            title: 'Sensibilidad Baja',
+            desc: 'Solo captura noticias muy relevantes. Útil si quieres ver únicamente las noticias más importantes y específicas.',
+            icon: 'exclamation-circle',
+            color: 'red'
+        };
+    }
+    
+    document.getElementById('thresholdLabel').textContent = label;
+    document.getElementById('thresholdInfo').className = `bg-${info.color}-50 border-l-4 border-${info.color}-400 p-4 rounded-r-lg`;
+    document.getElementById('thresholdInfo').innerHTML = `
+        <h4 class="font-semibold text-gray-800 mb-2 flex items-center">
+            <i class="fas fa-${info.icon} text-${info.color}-500 mr-2"></i> ${info.title}
+        </h4>
+        <p class="text-sm text-gray-700">${info.desc}</p>
+    `;
+}
+
+function toggleWizard() {
+    alert('💡 Ayuda del Wizard\\n\\nEste asistente te guiará paso a paso para crear un filtro personalizado de noticias.\\n\\n1. Dale un nombre descriptivo\\n2. Agrega palabras clave\\n3. Ajusta la sensibilidad\\n4. ¡Listo!');
 }
 </script>
 {% endblock %}

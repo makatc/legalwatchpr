@@ -1,13 +1,17 @@
-import os
 from pathlib import Path
-
+import os
 from dotenv import load_dotenv
+
+# Set BASE_DIR and load environment variables from .env
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+# Expose API keys to Django settings (fallback from .env)
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 # Versión de la aplicación
 VERSION = '1.1'
-
-# Cargar variables de entorno desde .env
-load_dotenv()
 
 # --- RUTAS BASE ---
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,6 +46,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.security.RateLimitMiddleware',
+    'core.middleware.security.SecurityHeadersMiddleware',
+    'core.middleware.security.RequestValidationMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -67,15 +74,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # --- BASE DE DATOS ---
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),  # Ensure the database name is 'legalwatchpr_db'
         'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'LegalWatch2026!PR'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'options': '-c search_path=public,pg_catalog'
-        }
     }
 }
 
@@ -107,3 +111,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'dashboard'  # Al entrar, ir al Dashboard
 LOGOUT_REDIRECT_URL = 'login'     # Al salir, ir al Login
 LOGIN_URL = 'login'               # Si intentan entrar sin permiso, mandar al Login
+
+# --- CONFIGURACIÓN DE SEGURIDAD ---
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Rate limiting
+RATE_LIMIT_REQUESTS = 100  # requests per window
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_SKIP_PATHS = [
+    '/admin/',
+    '/static/',
+    '/media/',
+]
+
+# Request validation
+MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 10MB
+
+# --- CONFIGURACIÓN DE EMBEDDINGS ---
+EMBEDDING_PROVIDER = 'sentence_transformers'
+EMBEDDING_MODEL = 'paraphrase-multilingual-MiniLM-L12-v2'
+EMBEDDING_DIMENSION = 384

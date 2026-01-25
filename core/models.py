@@ -5,8 +5,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from pypdf import PdfReader
-
-# from pgvector.django import VectorField, HnswIndex
+from pgvector.django import VectorField, HnswIndex
 
 # --- 1. GESTIÓN DE NOTICIAS ---
 class NewsSource(models.Model):
@@ -40,12 +39,12 @@ class Article(models.Model):
     )
     
     # CAMPO PARA EMBEDDINGS SEMÁNTICOS (pgvector - 384 dimensiones)
-    # embedding = VectorField(
-    #     dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
-    #     null=True,
-    #     blank=True,
-    #     help_text="Vector de embeddings semánticos (384 dimensiones)"
-    # )
+    embedding = VectorField(
+        dimensions=384,  # paraphrase-multilingual-MiniLM-L12-v2
+        null=True,
+        blank=True,
+        help_text="Vector de embeddings semánticos (384 dimensiones)"
+    )
     
     class Meta:
         ordering = ['-published_at']
@@ -98,6 +97,9 @@ class Bill(models.Model):
     number = models.CharField(max_length=50, unique=True) # Ej: P. de la C. 1001
     title = models.TextField()
     last_updated = models.DateTimeField(auto_now=True)
+    ai_score = models.IntegerField(default=0)
+    ai_analysis = models.TextField(blank=True, null=True)
+    relevance_why = models.CharField(max_length=500, blank=True)
 
     def __str__(self): return self.number
 

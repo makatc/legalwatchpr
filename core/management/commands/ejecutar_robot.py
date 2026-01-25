@@ -1,112 +1,163 @@
 import time
-
-import requests
+import logging
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
-from core.models import (Bill, Keyword, MonitoredCommission, MonitoredMeasure,
-                         UserProfile)
+from core.models import Bill, MonitoredMeasure
 from core.scraper import LegisScraper
+from core.utils import analyze_bill_relevance
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Robot Multi-Bot: Clasifica alertas y usa canales específicos'
+    help = "Ejecuta el robot para verificar y descargar medidas legislativas desde SUTRA."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--start-id',
+            type=int,
+            default=1,
+            help='ID inicial de la medida a escanear (ej: 1 para PC1)'
+        )
+        parser.add_argument(
+            '--count',
+            type=int,
+            default=10,
+            help='Cantidad de medidas consecutivas a escanear'
+        )
 
     def handle(self, *args, **options):
-        self.stdout.write("--- 🤖 ROBOT CLASIFICADOR INICIADO ---")
+        start_id = options['start_id']
+        count = options['count']
+        
+        # Cleanup any previous bad saves with 'Error 404' in title
+        try:
+            deleted, _ = Bill.objects.filter(title__icontains="Error 404").delete()
+            if deleted:
+                self.stdout.write(f"🧹 Limpieza: eliminadas {deleted} entradas con 'Error 404' en el título.")
+        except Exception as e:
+            logger.warning("Cleanup failed: %s", e)
 
-        # 1. CARGAR CONFIGURACIONES
-        keywords = list(Keyword.objects.values_list('term', flat=True))
-        my_measures = list(MonitoredMeasure.objects.values_list('sutra_id', flat=True))
-        my_commissions = list(MonitoredCommission.objects.filter(is_active=True).values_list('name', flat=True))
+        # Check if there are any monitored measures
+        monitored_count = MonitoredMeasure.objects.filter(is_active=True).count()
+        
+        if monitored_count == 0:
+            self.stdout.write("⚠️ No hay medidas en seguimiento. Agregue una desde el Dashboard para comenzar.")
+            self.stdout.write(f"Iniciando escaneo secuencial desde PC{start_id} hasta PC{start_id + count - 1}...")
+        else:
+            self.stdout.write(f"✓ {monitored_count} medidas en seguimiento activo.")
 
-        # 2. CARGAR CANALES (WEBHOOKS)
-        profile = UserProfile.objects.first()
-        if not profile:
-            self.stdout.write("⚠️ No hay perfil de usuario configurado.")
-            return
-
-        # 3. RANGO DE BÚSQUEDA
-        last_bill = Bill.objects.order_by('-sutra_id').first()
-        start_id = int(last_bill.sutra_id) + 1 if last_bill and last_bill.sutra_id.isdigit() else 152550
-        ids_to_scan = list(range(start_id, start_id + 5))
-
+        # Initialize scraper
         scraper = LegisScraper()
         
-        self.stdout.write(f"🔎 Escaneando desde ID: {ids_to_scan[0]}")
+        # Get monitored measure IDs (if any)
+        monitored_measures = list(
+            MonitoredMeasure.objects.filter(is_active=True).values_list('sutra_id', flat=True)
+        )
 
-        for current_id in ids_to_scan:
+        # Build list of IDs to process: monitored first, then sequential scan
+        measures_to_process = []
+        
+        # Add monitored measures
+        for measure_id in monitored_measures:
+            measures_to_process.append(('monitored', measure_id))
+        
+        # Add sequential scan range
+        for i in range(start_id, start_id + count):
+            measure_id = f"PC{i}"
+            if measure_id not in monitored_measures:
+                measures_to_process.append(('sequential', measure_id))
+
+        self.stdout.write(f"📋 Total de medidas a procesar: {len(measures_to_process)}")
+        self.stdout.write("-" * 80)
+
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+
+        for scan_type, measure_id in measures_to_process:
+            prefix = "🎯" if scan_type == 'monitored' else "🔍"
+            self.stdout.write(f"{prefix} Procesando: {measure_id}")
+
             try:
-                data = scraper.scrape_bill(current_id)
+                # Scrape bill data directly - let scraper handle URL validation
+                bill_data = scraper.scrape_bill(measure_id)
                 
-                if data:
-                    sutra_id_str = str(current_id)
-                    found_something = False
-                    
-                    # --- ANÁLISIS DE RUTAS (ROUTING) ---
-                    
-                    # RUTA 1: MEDIDAS ESPECÍFICAS
-                    if data['number'] in my_measures or sutra_id_str in my_measures:
-                        self.enviar_discord(profile.webhook_measures, data, "🎯 Medida Rastreada", 10181046) # Morado
-                        found_something = True
+                # If scraper returns None (404 or failure), skip saving
+                if bill_data is None:
+                    self.stdout.write(f"  ⏭️  No se encontraron datos válidos para {measure_id}")
+                    skip_count += 1
+                    time.sleep(1)
+                    continue
 
-                    # RUTA 2: COMISIONES
-                    if data.get('commission') in my_commissions:
-                        self.enviar_discord(profile.webhook_commissions, data, f"🏛️ Actividad en Comisión", 15844367) # Dorado
-                        found_something = True
+                # Extract and validate scraped data
+                bill_number = bill_data.get('number') or measure_id
+                bill_title = bill_data.get('title') or f"Proyecto de la Cámara {measure_id}"
+                
+                self.stdout.write(f"  📄 Título: {bill_title[:60]}...")
 
-                    # RUTA 3: PALABRAS CLAVE
-                    title_lower = data['title'].lower()
-                    matched_words = [w for w in keywords if w.lower() in title_lower]
-                    if matched_words:
-                        razon = f"🔑 Palabras: {', '.join(matched_words)}"
-                        self.enviar_discord(profile.webhook_keywords, data, razon, 3066993) # Verde
-                        found_something = True
+                # Persist to database (only fields present in Bill model)
+                bill, created = Bill.objects.update_or_create(
+                    number=bill_number,
+                    defaults={
+                        'title': bill_title,
+                        'last_updated': timezone.now(),
+                    }
+                )
 
-                    # GUARDAR EN BD
-                    if found_something:
-                        Bill.objects.update_or_create(
-                            sutra_id=sutra_id_str,
-                            defaults={
-                                'number': data['number'],
-                                'title': data['title'],
-                                'status': data['status'],
-                                'commission': data.get('commission', 'Sin asignar'),
-                                'sutra_url': data['sutra_url'],
-                                'last_updated': timezone.now()
-                            }
-                        )
-                        self.stdout.write(self.style.SUCCESS(f"   ★ {data['number']}: Procesada y enviada a canales correspondientes."))
+                action = "creado" if created else "actualizado"
+                self.stdout.write(f"  💾 Bill {action}: {bill.number}")
+
+                # Fase 7: Análisis de IA (Gemini)
+                try:
+                    # Avoid duplicate AI calls: if already has a positive ai_score, skip.
+                    try:
+                        existing_score = int(getattr(bill, 'ai_score', 0) or 0)
+                    except Exception:
+                        existing_score = 0
+
+                    ai_called = False
+                    if existing_score > 0:
+                        self.stdout.write("  ⏩ Saltando IA (ya analizado)")
                     else:
-                        self.stdout.write(f"   . {data['number']} ignorada (No coincide con filtros)")
+                        self.stdout.write("  🤖 Analizando con IA...")
+                        result = analyze_bill_relevance(bill)
+                        ai_called = True
+                        if result and isinstance(result, dict):
+                            score = int(result.get('score', 0))
+                            analysis = result.get('analysis', '')
+                            bill.ai_score = score
+                            bill.ai_analysis = analysis
+                            bill.relevance_why = (analysis[:500] if analysis else '')
+                            bill.save(update_fields=['ai_score', 'ai_analysis', 'relevance_why'])
+                            self.stdout.write(f"  🤖 AI score: {score}")
+                except Exception as e:
+                    logger.error("AI analysis failed for %s: %s", bill.number, e, exc_info=True)
 
-                else:
-                    self.stdout.write(f"   . Casilla {current_id} vacía")
+                success_count += 1
 
             except Exception as e:
-                self.stdout.write(f"Error en {current_id}: {e}")
-            
-            time.sleep(1)
+                self.stdout.write(f"  ❌ Error procesando {measure_id}: {str(e)}")
+                logger.error(f"Robot error en {measure_id}: {e}", exc_info=True)
+                error_count += 1
 
-        self.stdout.write("--- ✅ BARRIDO COMPLETADO ---")
+            # Rate limiting to avoid overwhelming SUTRA server
+            try:
+                if 'ai_called' in locals() and ai_called:
+                    self.stdout.write("  ⏳ Pausa de seguridad (10s) para cuidar la cuota...")
+                    time.sleep(10)
+                else:
+                    time.sleep(1)
+            except Exception:
+                # Fallback single-second wait on any unexpected issue
+                time.sleep(1)
+            self.stdout.write("-" * 80)
 
-    def enviar_discord(self, webhook_url, data, titulo_razon, color_hex):
-        """Envía la alerta al webhook específico si existe"""
-        if not webhook_url: return
-
-        payload = {
-            "embeds": [{
-                "title": f"{titulo_razon}: {data['number']}",
-                "description": data['title'][:250] + "...",
-                "url": data['sutra_url'],
-                "color": color_hex,
-                "fields": [
-                    {"name": "Estatus Actual", "value": data['status'], "inline": True},
-                    {"name": "Comisión", "value": data.get('commission', 'N/A'), "inline": True}
-                ],
-                "footer": {"text": "LegalWatch Multi-Channel Bot"}
-            }]
-        }
-        try:
-            requests.post(webhook_url, json=payload)
-        except: pass
+        # Final summary
+        self.stdout.write("\n" + "=" * 80)
+        self.stdout.write(self.style.SUCCESS(f"✅ Escaneo completado"))
+        self.stdout.write(f"  • Exitosos: {success_count}")
+        self.stdout.write(f"  • Saltados: {skip_count}")
+        self.stdout.write(f"  • Errores: {error_count}")
+        self.stdout.write(f"  • Total procesados: {len(measures_to_process)}")
+        self.stdout.write("=" * 80)

@@ -97,6 +97,9 @@ class Bill(models.Model):
     number = models.CharField(max_length=50, unique=True) # Ej: P. de la C. 1001
     title = models.TextField()
     last_updated = models.DateTimeField(auto_now=True)
+    ai_score = models.IntegerField(default=0)
+    ai_analysis = models.TextField(blank=True, null=True)
+    relevance_why = models.CharField(max_length=500, blank=True)
 
     def __str__(self): return self.number
 

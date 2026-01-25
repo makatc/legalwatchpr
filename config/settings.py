@@ -1,13 +1,13 @@
-import os
 from pathlib import Path
-
+import os
 from dotenv import load_dotenv
+
+# Set BASE_DIR and load environment variables from .env
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Versión de la aplicación
 VERSION = '1.1'
-
-# Cargar variables de entorno desde .env
-load_dotenv()
 
 # --- RUTAS BASE ---
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -70,15 +70,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # --- BASE DE DATOS ---
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),  # Ensure the database name is 'legalwatchpr_db'
         'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'LegalWatch2026!PR'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'options': '-c search_path=public,pg_catalog'
-        }
     }
 }
 

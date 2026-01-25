@@ -169,16 +169,37 @@ def sync_noticias(request):
     return JsonResponse({'ok': True, 'msg': 'sync initiated'})
 
 
+@login_required
+def sync_noticias(request):
+    from .utils import fetch_latest_news
+    fetch_latest_news()
+    return redirect('noticias')
+
+
 def resumir_noticia(request, article_id):
     """Vista que muestra un resumen (stub)."""
     summary = generate_ai_summary(article_id)
     return HttpResponse(summary)
 
 
+@login_required
+def resumir_noticia(request, article_id):
+    from .utils import generate_ai_summary
+    generate_ai_summary(article_id)
+    return redirect('noticias')
+
+
 def api_resumir_noticia(request, article_id):
     """API para resumir artículo (stub)."""
     summary = generate_ai_summary(article_id)
     return JsonResponse({'id': article_id, 'summary': summary})
+
+
+@login_required
+def api_resumir_noticia(request, article_id):
+    from .utils import generate_ai_summary
+    success = generate_ai_summary(article_id)
+    return JsonResponse({'success': success})
 
 
 def comparador(request, bill_id=None):
@@ -221,9 +242,6 @@ def api_save_profile(request):
 
 def api_save_webhook(request):
     return JsonResponse({'ok': True})
-
-
-from rest_framework.views import APIView
 
 
 class DocumentSearchView(APIView):

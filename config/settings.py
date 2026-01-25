@@ -42,6 +42,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.security.RateLimitMiddleware',
+    'core.middleware.security.SecurityHeadersMiddleware',
+    'core.middleware.security.RequestValidationMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -107,3 +110,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'dashboard'  # Al entrar, ir al Dashboard
 LOGOUT_REDIRECT_URL = 'login'     # Al salir, ir al Login
 LOGIN_URL = 'login'               # Si intentan entrar sin permiso, mandar al Login
+
+# --- CONFIGURACIÓN DE SEGURIDAD ---
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Rate limiting
+RATE_LIMIT_REQUESTS = 100  # requests per window
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_SKIP_PATHS = [
+    '/admin/',
+    '/static/',
+    '/media/',
+]
+
+# Request validation
+MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 10MB
+
+# --- CONFIGURACIÓN DE EMBEDDINGS ---
+EMBEDDING_PROVIDER = 'sentence_transformers'
+EMBEDDING_MODEL = 'paraphrase-multilingual-MiniLM-L12-v2'
+EMBEDDING_DIMENSION = 384

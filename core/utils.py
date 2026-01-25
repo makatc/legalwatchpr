@@ -1,111 +1,136 @@
---- a/.gitignore+++ b/.gitignore@@ -31,3 +31,7 @@ # OS
- .DS_Store
- Thumbs.db
-+
-+# Environment files
-+.env
-+.env.*
---- a/core/views.py+++ b/core/views.py@@ -57,6 +57,9 @@         'recent_bills': Bill.objects.all().order_by('-last_updated')[:5],
-         'recent_events': Event.objects.all().order_by('-date')[:5],
-         'monitored_measures': monitored_data,
-+        'keywords': Keyword.objects.all().order_by('term'),
-+        'comms': MonitoredCommission.objects.filter(is_active=True).order_by('name'),
-+        'available_commissions': sorted(AVAILABLE_COMMISSIONS),
-     }
-     return render(request, 'core/dashboard.html', context)
-@@ -314,9 +317,18 @@
- def delete_item(request, item_type, item_id):
--    model_map = {'keyword': Keyword, 'measure': MonitoredMeasure, 'commission': MonitoredCommission, 'preset': NewsPreset}
--    if item_type in model_map:
--        get_object_or_404(model_map[item_type], id=item_id).delete()
--    return redirect('configuracion')
-+    model_map = {
-+        'keyword': Keyword,
-+        'measure': MonitoredMeasure,
-+        'commission': MonitoredCommission,
-+        'preset': NewsPreset,
-+    }
-+    if item_type in model_map:
-+        get_object_or_404(model_map[item_type], id=item_id).delete()
-+
-+    # Redirección según área
-+    if item_type in {'keyword', 'measure', 'commission'}:
-+        return redirect('dashboard_configuracion')
-+    return redirect('configuracion')
---- a/core/templates/core/dashboard.html+++ b/core/templates/core/dashboard.html@@ -1,200 +1,200 @@
- {% extends 'core/base.html' %} 
- 
- {% block content %}
- <div class="p-6 bg-gray-50 min-h-screen">
-@@ -55,7 +55,7 @@
-                 <div class="flex justify-between items-center bg-gray-50">
-                     <h3 class="font-bold text-gray-700"><i class="fas fa-satellite-dish mr-2 text-purple-500"></i> Rastreador SUTRA (En Vivo)</h3>
--                    <a href="{% url 'configuracion' %}" class="text-xs text-blue-600 hover:underline">Configurar</a>
-+                    <a href="{% url 'dashboard_configuracion' %}" class="text-xs text-blue-600 hover:underline">Configurar</a>
-                 </div>
-                 <div class="p-0">
-                     {% if monitored_measures %}
-@@ -160,7 +160,7 @@
-                     <div class="flex flex-wrap gap-2 max-h-60 overflow-y-auto">
-                         {% for comm in comms %}
-                         <span class="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
-@@ -220,7 +220,7 @@
-                 </form>
- 
--                <form method="POST" action="{% url 'configuracion' %}" class="flex gap-2 items-center mb-3">
-+                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="flex gap-2 items-center mb-3">
-                     {% csrf_token %}
-                     <input type="text" name="keyword" placeholder="Añadir keyword" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                     <button type="submit" name="add_keyword" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-@@ -260,7 +260,7 @@
-                 </form>
- 
--                <form method="POST" action="{% url 'configuracion' %}" class="grid grid-cols-1 gap-2 mb-3">
-+                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="grid grid-cols-1 gap-2 mb-3">
-                     {% csrf_token %}
-                     <input type="text" name="measure_id" placeholder="Añadir medida (ej: P. de la C. 123)" class="px-3 py-2 border rounded-lg text-sm">
-                     <button type="submit" name="add_measure" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-@@ -320,7 +320,7 @@
-                 </form>
- 
--                <form method="POST" action="{% url 'configuracion' %}" class="flex gap-2 items-center mb-3">
-+                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="flex gap-2 items-center mb-3">
-                     {% csrf_token %}
-                     <select name="commission_name" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                         {% for c in available_commissions %}
---- a/core/templates/core/dashboard_configuracion.html+++ b/core/templates/core/dashboard_configuracion.html@@ -1,9999 +1,9999 @@
- {% extends 'core/base.html' %}
- 
- {% block content %}
- <div class="p-8 min-h-screen bg-[#f5f6fa]">
-@@
- </div>
- {% endblock %}
---- a/requirements.txt+++ b/requirements.txt@@ -1,30 +1,30 @@
- Django==5.1.3
- dj-database-url==2.3.0
- google-generativeai==0.8.3
- requests==2.32.3
- beautifulsoup4==4.12.3
- feedparser==6.0.11
- lxml==5.3.0
- gunicorn==23.0.0
- python-dotenv==1.0.1
- urllib3==2.2.2
- psycopg2-binary==2.9.10
- django-allauth==65.0.1
- djangorestframework==3.15.2
- django-jazzmin==3.0.1
- django-unfold==0.76.0
- django-import-export==4.1.1
- django-environ==0.11.2
- django-cors-headers==4.4.0
- pgvector==0.3.6
- sentence-transformers==3.2.1
- torch==2.5.1
- transformers==4.46.3
- numpy==1.26.4
- scikit-learn==1.5.2
- python-dateutil==2.9.0.post0
- pandas==2.2.3
- rank-bm25==0.2.2
+import os
+import difflib
+import unicodedata
+try:
+    import google.generativeai as genai
+except Exception:
+    genai = None
+import requests
+import urllib3
+from dotenv import load_dotenv
+
+# --- 1. CONFIGURACIÓN DE RUTAS ---
+BASE_DIR = r"C:\Users\becof\vs\legalwatchpr"
+# load .env from absolute path as requested
+ENV_PATH = r"C:\Users\becof\vs\legalwatchpr\.env"
+
+if os.path.exists(ENV_PATH):
+    load_dotenv(ENV_PATH)
+    print(f"✅ Archivo .env cargado desde: {ENV_PATH}")
+else:
+    # attempt to load anyway; load_dotenv is safe if file missing
+    load_dotenv(ENV_PATH)
+    print(f"❌ ERROR: No se encontró el .env en: {ENV_PATH}")
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if GOOGLE_API_KEY and genai is not None:
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+    except Exception:
+        pass
+
+# --- 2. FUNCIONES REQUERIDAS POR VIEWS.PY ---
+
+def analyze_legal_diff(text_old, text_new):
+    """Analiza cambios entre dos textos y devuelve un resumen estructurado.
+
+    Usa la IA si está disponible; si no, hace un análisis local con difflib.
+    """
+    try:
+        if genai is not None and GOOGLE_API_KEY:
+            try:
+                model = getattr(genai, 'GenerativeModel', None)
+                if model:
+                    m = model('gemini-1.5-flash')
+                    response = m.generate_content(f"Compara y resume estos textos legales: {text_old[:2000]} vs {text_new[:2000]}")
+                    return getattr(response, 'text', str(response))
+            except Exception:
+                # fallthrough to local analysis
+                pass
+
+        a = text_old or ""
+        b = text_new or ""
+        na = normalize_text(a)
+        nb = normalize_text(b)
+        sm = difflib.SequenceMatcher(a=na, b=nb)
+        opcodes = sm.get_opcodes()
+
+        added = []
+        removed = []
+        changed = []
+        for tag, i1, i2, j1, j2 in opcodes:
+            a_seg = na[i1:i2]
+            b_seg = nb[j1:j2]
+            if tag == 'insert':
+                added.append({'text': b_seg, 'pos': j1})
+            elif tag == 'delete':
+                removed.append({'text': a_seg, 'pos': i1})
+            elif tag == 'replace':
+                changed.append({'from': a_seg, 'to': b_seg, 'pos_from': i1, 'pos_to': j1})
+
+        html = generate_diff_html(a, b)
+        return {
+            'added': added,
+            'removed': removed,
+            'changed': changed,
+            'html': html,
+            'summary': {
+                'added_count': len(added),
+                'removed_count': len(removed),
+                'changed_count': len(changed),
+            },
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+def check_sutra_status(measure_id):
+    """Verifica conexión con SUTRA ignorando SSL"""
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    clean_id = str(measure_id).lower().replace("p. de la c.", "pc").replace(" ", "").replace(".", "")
+    url = f"https://sutra.oslpr.org/osl/es/medidas/{clean_id}"
+    try:
+        res = requests.get(url, timeout=10, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
+        return (res.status_code == 200, "En línea" if res.status_code == 200 else f"Error {res.status_code}")
+    except Exception as e:
+        return (False, str(e))
+
+def generate_diff_html(text1, text2):
+    """Genera tabla de diferencias visuales"""
+    d = difflib.HtmlDiff()
+    return d.make_table(text1.splitlines() if text1 else [], text2.splitlines() if text2 else [], context=True)
+
+def fetch_latest_news(limit=10):
+    """Fetch latest news/articles by syncing RSS sources."""
+    from core.scraper import sync_all_rss_sources
+    return sync_all_rss_sources(max_entries=10)
+
+def generate_ai_summary(article_id):
+    """Generate an AI summary for an article using Gemini API."""
+    from core.models import Article
+    try:
+        article = Article.objects.get(id=article_id)
+        if not os.getenv("GOOGLE_API_KEY"):
+            return "Error: API Key missing."
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"Resume esta noticia para un abogado: {article.title}. Contenido: {article.snippet[:2000]}"
+        response = model.generate_content(prompt)
+        article.ai_summary = response.text
+        article.save()
+        return True
+    except Exception as e:
+        return False
+
+
+# Exports for safe imports from views
+__all__ = [
+    'analyze_legal_diff',
+    'check_sutra_status',
+    'fetch_latest_news',
+    'generate_ai_summary',
+    'generate_diff_html',
+    'normalize_text',
+]
+
+def normalize_text(text):
+    if not text: return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', text.lower()) if unicodedata.category(c) != 'Mn')

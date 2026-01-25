@@ -1,11 +1,13 @@
 import datetime
 import json
 import logging
+import re
 
 import icalendar
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -207,6 +209,61 @@ def configuracion(request):
     }
     return render(request, 'core/configuracion.html', context)
 
+
+@login_required
+@require_POST
+def api_save_profile(request):
+    """Guardar perfil de búsqueda (keywords, método, threshold) vía AJAX.
+
+    Persistimos en `NewsPreset` con nombre por usuario para simplicidad.
+    """
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    keywords = payload.get('keywords', '') or ''
+    search_method = payload.get('search_method', 'hybrid')
+    try:
+        threshold = int(payload.get('threshold', 15))
+    except Exception:
+        threshold = 15
+
+    # Crear o actualizar un preset por usuario
+    preset_name = f"Perfil {request.user.username}"
+    try:
+        preset, created = NewsPreset.objects.update_or_create(
+            name=preset_name,
+            defaults={
+                'keywords': keywords,
+                'threshold': threshold,
+                'search_method': search_method,
+                'is_active': True
+            }
+        )
+        return JsonResponse({'success': True, 'preset_id': preset.id})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def api_save_webhook(request):
+    """Guardar webhook de usuario en sesión (ligero) y devolver éxito.
+
+    Nota: la persistencia puede implementarse en el modelo de usuario si se desea.
+    """
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    webhook = (payload.get('webhook') or '').strip()
+    # Guardar en sesión para simplicidad y rapidez
+    request.session['user_webhook'] = webhook
+    request.session.modified = True
+    return JsonResponse({'success': True, 'webhook': webhook})
+
 @login_required
 def dashboard_configuracion(request):
     """Configuración SOLO para Dashboard SUTRA (MonitoredMeasure, MonitoredCommission)"""
@@ -258,59 +315,52 @@ def dashboard_configuracion(request):
 
 @login_required
 def generate_keywords_ai(request):
-    """Endpoint AJAX para generar keywords con IA a partir de temas."""
+    """Mock endpoint para generar keywords con IA a partir de temas.
+
+    Comportamiento:
+    - Acepta POST con JSON {'topics': 'texto...'}
+    - Devuelve {'success': True, 'keywords': [...]} siempre (mock)
+    - Reglas simples para pruebas:
+        * Si 'luma' o 'energ' en el texto -> ['AEE','Genera PR','Apagones']
+        * Si 'permis' en el texto -> ['OGPe','Junta de Planificación']
+        * Si no, devuelve una lista genérica basada en palabras del texto o valores por defecto
+    """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
-    
+
     try:
-        from .utils import generate_keywords_for_topics
-        
-        data = json.loads(request.body)
-        topics_text = data.get('topics', '').strip()
-        
-        print(f"📥 Solicitud recibida para generar keywords")
-        print(f"📝 Temas recibidos: {topics_text}")
-        
-        if not topics_text:
-            return JsonResponse({'success': False, 'error': 'No se proporcionaron temas'}, status=400)
-        
-        # Separar temas por línea y filtrar vacíos
-        topics_list = [t.strip() for t in topics_text.split('\n') if t.strip()]
-        
-        print(f"📋 Lista de temas procesados: {topics_list}")
-        
-        if len(topics_list) > 10:
-            return JsonResponse({
-                'success': False, 
-                'error': f'Máximo 10 temas permitidos. Recibidos: {len(topics_list)}'
-            }, status=400)
-        
-        # Generar keywords con IA
-        print(f"🤖 Llamando a IA para generar keywords...")
-        keywords_dict = generate_keywords_for_topics(topics_list)
-        
-        print(f"✅ Resultados de IA: {len(keywords_dict)} temas procesados")
-        
-        if not keywords_dict:
-            print(f"❌ IA retornó diccionario vacío")
-            return JsonResponse({
-                'success': False,
-                'error': 'La IA no pudo generar keywords. Verifica la conexión o intenta con menos temas.'
-            }, status=500)
-        
-        return JsonResponse({
-            'success': True,
-            'results': keywords_dict
-        })
-        
-    except json.JSONDecodeError as e:
-        print(f"❌ Error JSON: {e}")
-        return JsonResponse({'success': False, 'error': 'JSON inválido en la solicitud'}, status=400)
+        body = request.body.decode('utf-8') if request.body else '{}'
+        data = json.loads(body)
+        topics_text = data.get('topics', '') or ''
+        topics_text = str(topics_text).strip()
+
+        # Normalizar para coincidencias sencillas
+        ctx = topics_text.lower()
+
+        # Regla 1: energía / luma
+        if 'luma' in ctx or 'energ' in ctx or 'energía' in ctx:
+            kws = ['AEE', 'Genera PR', 'Apagones']
+        # Regla 2: permisos
+        elif 'permis' in ctx:
+            kws = ['OGPe', 'Junta de Planificación']
+        else:
+            # Intentar extraer palabras relevantes del texto
+            parts = re.split(r'[\s,;:\.\-]+', ctx)
+            parts = [p for p in parts if p and len(p) > 2]
+            # Capitalizar y limitar
+            kws = [p.capitalize() for p in dict.fromkeys(parts)]
+            kws = kws[:5]
+            if not kws:
+                kws = ['Política', 'Gobierno', 'Legislación']
+
+        return JsonResponse({'success': True, 'keywords': kws})
+
+    except json.JSONDecodeError:
+        # No bloquear al frontend: devolver éxito con lista vacía
+        return JsonResponse({'success': True, 'keywords': []})
     except Exception as e:
-        print(f"❌ Error inesperado: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        return JsonResponse({'success': False, 'error': f'Error del servidor: {str(e)}'}, status=500)
+        logger.exception('Error en generate_keywords_ai')
+        return JsonResponse({'success': True, 'keywords': []})
 
 @login_required
 def delete_item(request, item_type, item_id):

@@ -27,21 +27,21 @@
                             <input type="text" id="tag_input" 
                                 class="w-full p-3 pl-4 pr-12 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" 
                                 placeholder="Escribe una frase y presiona ENTER (Ej: Energía Renovable)">
-                            <button onclick="addManualTagFromInput()" class="absolute right-2 top-2.5 text-blue-600 hover:text-blue-800 p-1">
+                            <button type="button" onclick="addManualTagFromInput()" class="absolute right-2 top-2.5 text-blue-600 hover:text-blue-800 p-1">
                                 <i class="fas fa-plus-circle fa-lg"></i>
                             </button>
                         </div>
 
-                        <button onclick="generateKeywordsAI()" id="btn-ai-generate" class="md:w-auto bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-semibold px-4 py-3 rounded-lg border border-indigo-200 transition flex items-center justify-center whitespace-nowrap">
+                        <button type="button" onclick="generateKeywordsAI()" id="btn-ai-generate" class="md:w-auto bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-semibold px-4 py-3 rounded-lg border border-indigo-200 transition flex items-center justify-center whitespace-nowrap">
                             <i class="fas fa-magic mr-2"></i> Sugerir con IA
                         </button>
                     </div>
 
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 min-h-[100px]">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <p class="text-xs text-blue-400 font-bold uppercase mb-2 tracking-wide">Conceptos Activos (El monitor buscará esto):</p>
                         
-                        <div id="tags_visual_container" class="flex flex-wrap gap-2">
-                            <span class="text-gray-400 text-sm italic py-2" id="empty-tags-msg">No hay conceptos definidos. El monitor está ciego.</span>
+                        <div id="tags_visual_container" class="flex flex-wrap gap-2 min-h-[300px] border-2 border-gray-300 overflow-y-auto p-3 w-full">
+                            <!-- tags render here -->
                         </div>
                     </div>
 
@@ -112,7 +112,8 @@
 
 <script>
 // --- ESTADO GLOBAL DE LAS ETIQUETAS ---
-let keywordsList = [];
+// Hacerlo persistente en `window` para evitar reinicios accidentales
+window.keywordsList = window.keywordsList || [];
 
 // AL CARGAR LA PÁGINA
 document.addEventListener('DOMContentLoaded', function() {
@@ -120,7 +121,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedString = document.getElementById('final_keywords_string').value;
     if (savedString) {
         savedString.split(',').forEach(word => {
-            if(word.trim()) addTagData(word.trim());
+            const w = (word || '').trim();
+            if (w) addTagData(w); // usa addTagData que hace push sobre window.keywordsList
         });
     }
     renderTags(); 
@@ -138,103 +140,124 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function addManualTagFromInput() {
     const input = document.getElementById('tag_input');
-    const val = input.value.trim();
+    const val = (input.value || '').trim();
     if (val) {
-        addTagData(val); // Añadir al sistema
-        input.value = ''; // Limpiar input
-        renderTags(); // Actualizar visualmente
+        // Agregar sin reiniciar el array
+        addTagData(val);
+        input.value = '';
+        renderTags();
     }
 }
 
 function addTagData(text) {
     if (!text) return;
-    // Limpiamos comas para evitar errores en el string final
-    const cleanText = text.replace(/,/g, ''); 
-    // Evitamos duplicados
-    if (!keywordsList.includes(cleanText)) {
-        keywordsList.push(cleanText);
+    const cleanText = String(text).replace(/,/g, '').trim();
+    if (!cleanText) return;
+    // Usar el array global persistente
+    if (!window.keywordsList.includes(cleanText)) {
+        window.keywordsList.push(cleanText);
     }
     updateHiddenInput();
 }
 
 function removeTag(text) {
-    keywordsList = keywordsList.filter(t => t !== text);
+    window.keywordsList = window.keywordsList.filter(t => t !== text);
     renderTags();
     updateHiddenInput();
 }
 
 function updateHiddenInput() {
     // Esto actualiza el campo invisible que se enviará al servidor
-    document.getElementById('final_keywords_string').value = keywordsList.join(',');
+    document.getElementById('final_keywords_string').value = (window.keywordsList || []).join(',');
 }
 
 function renderTags() {
     const container = document.getElementById('tags_visual_container');
-    const emptyMsg = document.getElementById('empty-tags-msg');
-    
-    container.innerHTML = ''; // Limpiar visualmente
+    const list = window.keywordsList || [];
+    container.innerHTML = '';
 
-    if (keywordsList.length === 0) {
-        container.appendChild(emptyMsg);
-        emptyMsg.style.display = 'block';
-    } else {
-        emptyMsg.style.display = 'none';
-
-        keywordsList.forEach(word => {
-            // Creamos la "cajita" visual (Chip)
-            const tagEl = document.createElement('div');
-            tagEl.className = 'inline-flex items-center bg-white border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm transition hover:shadow-md animate-fade-in';
-            tagEl.innerHTML = `
-                <span class="mr-2">${word}</span>
-                <button onclick="removeTag('${word}')" class="text-blue-300 hover:text-red-500 focus:outline-none transition">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            `;
-            container.appendChild(tagEl);
-        });
+    if (list.length === 0) {
+        const msg = document.createElement('span');
+        msg.className = 'text-gray-400 text-sm italic py-2';
+        msg.id = 'empty-tags-msg';
+        msg.innerText = 'No hay conceptos definidos. El monitor está ciego.';
+        container.appendChild(msg);
+        return;
     }
+
+    list.forEach(word => {
+        const tagEl = document.createElement('div');
+        tagEl.className = 'inline-flex items-center bg-white border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm transition hover:shadow-md';
+        const span = document.createElement('span');
+        span.className = 'mr-2';
+        span.innerText = word;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-blue-300 hover:text-red-500 focus:outline-none transition';
+        btn.innerHTML = '<i class="fas fa-times-circle"></i>';
+        btn.addEventListener('click', () => removeTag(word));
+        tagEl.appendChild(span);
+        tagEl.appendChild(btn);
+        container.appendChild(tagEl);
+    });
 }
 
-// --- GENERADOR IA (SIMULADO PARA INTERFAZ) ---
+// --- GENERADOR IA (LLAMA AL BACKEND MOCK) ---
 async function generateKeywordsAI() {
     const btn = document.getElementById('btn-ai-generate');
     const input = document.getElementById('tag_input');
-    
-    // Si el usuario escribió algo en el input pero no dio enter, úsalo de contexto
-    let context = input.value || keywordsList.join(" ");
+    let context = input.value || (window.keywordsList || []).join(' ');
 
     if (!context) {
-        alert("Escribe al menos un tema manual para que la IA sepa qué buscar.");
+        alert('Escribe al menos un tema manual para que la IA sepa qué buscar.');
         return;
     }
 
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Pensando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Consultando IA...';
 
-    // AQUÍ CONECTAREMOS CON EL BACKEND REAL MÁS ADELANTE
-    // Por ahora simulamos que la IA encuentra semejanzas basadas en tu contexto
-    setTimeout(() => {
-        // Simulamos respuesta de IA
-        const suggestions = ["Energía Distribuida", "Infraestructura Crítica", "Permisos", "Fiscalización"];
-        
+    try {
+        const resp = await fetch('/api/generate-keywords/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ topics: context })
+        });
+
+        if (!resp.ok) {
+            throw new Error('Respuesta no OK del servidor');
+        }
+
+        const data = await resp.json();
+        const suggestions = Array.isArray(data.keywords) ? data.keywords : (Array.isArray(data.results) ? data.results : []);
+
         let added = 0;
         suggestions.forEach(s => {
-            if(!keywordsList.includes(s)) {
-                addTagData(s);
+            const clean = String(s).trim();
+            if (clean && !(window.keywordsList || []).includes(clean)) {
+                addTagData(clean);
                 added++;
             }
         });
 
         renderTags();
-        
+
+        if (added > 0) {
+            alert(`💡 La IA añadió ${added} conceptos a la lista.`);
+        } else {
+            alert('La IA no encontró conceptos nuevos.');
+        }
+
+    } catch (e) {
+        console.error('Error llamando a IA:', e);
+        alert('Error conectando con la IA. Intenta de nuevo.');
+    } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
-        
-        if(added > 0) {
-            alert(`💡 La IA encontró ${added} conceptos semejantes y los añadió a la lista.`);
-        }
-    }, 1000);
+    }
 }
 
 // --- GUARDAR DATOS (SEPARADO) ---
@@ -262,23 +285,33 @@ async function saveProfile() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Guardando...';
 
     const payload = {
-        action: 'save_profile',
-        topics: document.getElementById('final_keywords_string').value,
+        keywords: document.getElementById('final_keywords_string').value,
         search_method: document.getElementById('search_method').value,
         threshold: document.getElementById('threshold').value
     };
 
     try {
-        await sendData(payload);
+        const resp = await fetch('/api/save-profile/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('Error guardando perfil');
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Error servidor');
+
         btn.innerHTML = '<i class="fas fa-check mr-2"></i> ¡Perfil Actualizado!';
         btn.classList.add('bg-green-600');
         setTimeout(() => {
             btn.innerHTML = originalText;
             btn.classList.remove('bg-green-600');
             btn.disabled = false;
-        }, 2000);
+        }, 1500);
     } catch (e) {
-        alert("Error: " + e);
+        alert('Error guardando perfil: ' + e.message);
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -288,24 +321,32 @@ async function saveProfile() {
 async function saveWebhook() {
     const btn = document.getElementById('btn-save-webhook');
     const originalText = btn.innerHTML;
-
     btn.disabled = true;
     btn.innerHTML = 'Guardando...';
 
-    const payload = {
-        action: 'save_webhook',
-        webhook: document.getElementById('webhook_url').value
-    };
+    const payload = { webhook: document.getElementById('webhook_url').value };
 
     try {
-        await sendData(payload);
+        const resp = await fetch('/api/save-webhook/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) throw new Error('Error guardando webhook');
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Error servidor');
+
         btn.innerHTML = '¡Guardado!';
         setTimeout(() => {
             btn.innerHTML = originalText;
             btn.disabled = false;
-        }, 2000);
+        }, 1200);
     } catch (e) {
-        alert("Error: " + e);
+        alert('Error guardando webhook: ' + e.message);
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -313,10 +354,7 @@ async function saveWebhook() {
 
 // Función auxiliar para enviar al servidor
 async function sendData(payload) {
-    // Usamos la misma vista, pero le pasamos los datos específicos
-    // Nota: Para que funcione 100% con tu backend actual, enviamos todo junto si es necesario,
-    // pero aquí lo separo lógicamente. El backend 'views.py' que hicimos antes acepta el JSON genérico.
-    
+    // Legacy helper left for compatibility. Prefer using specific endpoints in saveProfile/saveWebhook.
     const response = await fetch('/configuracion/', {
         method: 'POST',
         headers: {
@@ -326,7 +364,7 @@ async function sendData(payload) {
         body: JSON.stringify(payload)
     });
     const data = await response.json();
-    if (!data.success) throw new Error(data.message);
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
     return data;
 }
 </script>

@@ -1,731 +1,111 @@
-import difflib
-import json
-import time
-import unicodedata
-
-import feedparser
-import google.generativeai as genai
-import requests
-import urllib3
-from bs4 import BeautifulSoup
-from dateutil import parser
-from django.utils import timezone
-from rank_bm25 import BM25Okapi
-
-from .models import Article, NewsPreset, NewsSource
-
-# Desactivar las advertencias molestas de seguridad SSL
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# --- TU CLAVE DE GOOGLE ---
-GOOGLE_API_KEY = "AIzaSyBCJi-ntoxQCvnnasb2jBuXj4DK0djajnQ"
-
-genai.configure(api_key=GOOGLE_API_KEY)
-
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'es-ES,es;q=0.9',
-    'Referer': 'https://www.google.com/'
-}
-
-# --- 1. COMPARADOR VISUAL (COLORES) ---
-def generate_diff_html(text1, text2):
-    lines1 = text1.splitlines()
-    lines2 = text2.splitlines()
-    d = difflib.HtmlDiff()
-    html_diff = d.make_table(lines1, lines2, fromdesc='Versión A', todesc='Versión B', context=True, numlines=5)
-    html_diff = html_diff.replace('nowrap="nowrap"', '')
-    return html_diff
-
-# --- 2. COMPARADOR INTELIGENTE (IA) ---
-def analyze_legal_diff(text_old, text_new):
-    try:
-        available_model = None
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_model = m.name
-                    break 
-        except: pass
-        
-        if not available_model: available_model = 'models/gemini-1.5-flash'
-        
-        model = genai.GenerativeModel(available_model)
-        
-        prompt = f"""
-        Actúa como un Abogado Corporativo Senior. Compara los textos y genera un Resumen Ejecutivo.
-        
-        REGLAS DE FORMATO ESTRICTAS (NO LAS ROMPAS):
-        1. NO saludes, NO des introducciones.
-        2. Tu respuesta debe ser EXCLUSIVAMENTE código HTML.
-        3. Usa la etiqueta <h3> para el título principal.
-        4. Usa la etiqueta <ul class="list-disc pl-5 space-y-2"> para la lista de puntos.
-        5. Cada punto debe ser un <li> con <strong>Concepto:</strong>.
-
-        --- VERSIÓN ORIGINAL ---
-        {text_old}
-
-        --- VERSIÓN NUEVA ---
-        {text_new}
-        """
-        
-        response = model.generate_content(prompt)
-        clean_text = response.text.replace("```html", "").replace("```", "")
-        return clean_text
-
-    except Exception as e:
-        return f"<p class='text-red-500'><strong>Error analizando con IA:</strong> {str(e)}</p>"
-
-# --- 3. FUNCIONES DEL ROBOT DE NOTICIAS ---
-def normalize_text(text):
-    if not text: return ""
-    text = text.lower()
-    return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
-
-def calculate_relevance_score(text, keywords, fields_to_analyze="title,description"):
-    """
-    Calcula un score de relevancia (0-100) usando BM25 (Best Matching 25).
-    BM25 es un algoritmo de ranking que evalúa relevancia semántica.
-    
-    Args:
-        text: Texto a analizar
-        keywords: Lista de palabras clave
-        fields_to_analyze: Campos considerados (para futura expansión)
-    
-    Retorna: Score entre 0-100
-    """
-    if not text or not keywords:
-        return 0.0
-    
-    # Normalizar texto y tokenizar
-    text_normalized = normalize_text(text)
-    text_tokens = text_normalized.split()
-    
-    if not text_tokens:
-        return 0.0
-    
-    # Crear corpus con el texto (BM25 necesita una lista de documentos)
-    corpus = [text_tokens]
-    
-    # Inicializar BM25
-    bm25 = BM25Okapi(corpus)
-    
-    # Preparar query con las keywords
-    query_tokens = []
-    for keyword in keywords:
-        keyword_normalized = normalize_text(keyword)
-        query_tokens.extend(keyword_normalized.split())
-    
-    if not query_tokens:
-        return 0.0
-    
-    # Calcular score BM25
-    scores = bm25.get_scores(query_tokens)
-    raw_score = scores[0] if len(scores) > 0 else 0.0
-    
-    # Normalizar a escala 0-100
-    # BM25 scores típicamente van de 0 a ~10 para textos cortos
-    # Usamos una función de mapeo suave
-    normalized_score = min(100.0, (raw_score / 5.0) * 100)
-    
-    return normalized_score
-
-def scrape_full_text(url):
-    try:
-        time.sleep(0.3) 
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        response.encoding = 'utf-8'
-        if response.status_code != 200: return None
-        soup = BeautifulSoup(response.text, 'html.parser')
-        full_text = ""
-        paragraphs = soup.find_all('p')
-        for p in paragraphs:
-            text = p.get_text().strip()
-            if len(text) > 40 and "Copyright" not in text and "Suscríbete" not in text:
-                full_text += f"<p>{text}</p>"
-        return full_text if len(full_text) > 100 else None
-    except Exception as e:
-        print(f"Error scraping {url}: {e}")
-        return None
-
-def get_image_from_entry(entry):
-    if 'media_content' in entry:
-        for media in entry.media_content:
-            if 'image' in media.get('type', '') or 'jpg' in media.get('url', ''): return media['url']
-    if 'enclosures' in entry:
-        for enclosure in entry.enclosures:
-            if 'image' in enclosure.get('type', ''): return enclosure['href']
-    if 'media_thumbnail' in entry: return entry.media_thumbnail[0]['url']
-    return None
-
-def generate_keywords_for_topics(topics_list):
-    """
-    Genera keywords/frases relevantes para múltiples temas usando IA.
-    
-    Args:
-        topics_list: Lista de temas (máximo 10)
-    
-    Retorna: Dict con tema como key y lista de keywords como value
-    """
-    try:
-        # Limitar a 10 temas
-        topics_list = topics_list[:10]
-        
-        if not topics_list:
-            return {}
-        
-        # Obtener modelo de IA
-        available_model = None
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_model = m.name
-                    break 
-        except: pass
-        
-        if not available_model: 
-            available_model = 'models/gemini-1.5-flash'
-        
-        model = genai.GenerativeModel(available_model)
-        
-        # Crear lista de temas para el prompt
-        topics_formatted = "\n".join([f"{i+1}. {topic}" for i, topic in enumerate(topics_list)])
-        
-        prompt = f"""
-Eres un asistente especializado en monitoreo de noticias para abogados en Puerto Rico.
-
-TAREA: Para cada tema listado, genera entre 10-15 términos de búsqueda relevantes. 
-Incluye tanto palabras individuales como frases específicas (2-4 palabras).
-
-CONTEXTO: Puerto Rico - Gobierno, legislación, política, economía, salud, educación.
-
-TEMAS:
-{topics_formatted}
-
-FORMATO DE RESPUESTA (CRÍTICO - NO LO CAMBIES):
-Responde SOLO con JSON válido, sin texto adicional, sin markdown, sin explicaciones:
-
-{{
-  "Tema 1": ["término 1", "término 2", "frase específica", ...],
-  "Tema 2": ["término 1", "término 2", "frase específica", ...],
-  ...
-}}
-
-REGLAS:
-1. Usa los nombres exactos de los temas como keys
-2. 10-15 términos por tema
-3. Mezcla palabras y frases (2-4 palabras)
-4. Enfócate en términos legales/gubernamentales de Puerto Rico
-5. Incluye variaciones (ej: "UPR", "Universidad de Puerto Rico")
-6. Solo JSON, sin texto antes o después
-
-EJEMPLO:
-{{"Educación Pública": ["Departamento de Educación", "reforma educativa", "UPR", "Universidad de Puerto Rico", "presupuesto escolar", "maestros", "matrícula", "sistema educativo", "currículo", "evaluación docente", "estudiantes", "colegios", "secretario educación"]}}
-"""
-        
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        
-        # Limpiar respuesta (quitar markdown si existe)
-        response_text = response_text.replace("```json", "").replace("```", "").strip()
-        
-        # Parsear JSON
-        keywords_dict = json.loads(response_text)
-        
-        return keywords_dict
-        
-    except json.JSONDecodeError as e:
-        print(f"❌ Error parseando JSON de IA: {e}")
-        print(f"Respuesta recibida: {response_text[:500]}")
-        return {}
-    except Exception as e:
-        print(f"❌ Error generando keywords con IA: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
-
-# --- FUNCIONES DE SINCRONIZACIÓN RSS ---
-
-def get_active_sources():
-    """Obtiene todas las fuentes RSS activas."""
-    return NewsSource.objects.filter(is_active=True)
-
-def get_active_presets():
-    """Obtiene todos los presets de filtrado activos."""
-    return NewsPreset.objects.filter(is_active=True)
-
-def check_match(text, presets):
-    """
-    Verifica si un texto coincide con algún preset usando el método configurado.
-    
-    Soporta 3 métodos de búsqueda:
-    - 'keyword': Scoring tradicional por palabras clave (rápido)
-    - 'semantic': Búsqueda semántica con embeddings (preciso)
-    - 'hybrid': Combinación de ambos con RRF (mejor rendimiento)
-    
-    Retorna: (match: bool, preset_name: str, score: float)
-    """
-    if not presets:
-        return True, None, 100.0
-    
-    best_score = 0.0
-    best_preset = None
-    best_method = 'keyword'
-    
-    for preset in presets:
-        # Obtener configuración del preset
-        keywords = [k.strip() for k in preset.keywords.split(',') if k.strip()]
-        threshold = preset.threshold if hasattr(preset, 'threshold') else 15
-        fields = preset.fields_to_analyze if hasattr(preset, 'fields_to_analyze') else "title,description"
-        search_method = preset.search_method if hasattr(preset, 'search_method') else 'keyword'
-        
-        # Calcular score según el método configurado
-        if search_method == 'semantic':
-            # Búsqueda semántica con embeddings
-            score = _calculate_semantic_score(text, keywords)
-        elif search_method == 'hybrid':
-            # Combinar keyword y semántica (promedio ponderado)
-            keyword_score = calculate_relevance_score(text, keywords, fields)
-            semantic_score = _calculate_semantic_score(text, keywords)
-            # 60% semántica, 40% keywords (priorizamos entendimiento conceptual)
-            score = (semantic_score * 0.6) + (keyword_score * 0.4)
-        else:  # 'keyword' (default)
-            # Scoring tradicional por palabras clave
-            score = calculate_relevance_score(text, keywords, fields)
-        
-        # Guardar mejor score
-        if score > best_score:
-            best_score = score
-            best_preset = preset.name
-            best_method = search_method
-    
-    # Determinar si pasa el filtro usando el threshold del mejor preset
-    threshold_to_use = 15  # Default
-    for preset in presets:
-        if preset.name == best_preset:
-            threshold_to_use = preset.threshold if hasattr(preset, 'threshold') else 15
-            break
-    
-    match = best_score >= threshold_to_use
-    
-    return match, best_preset, best_score
-
-
-def _calculate_semantic_score(text, keywords):
-    """
-    Calcula score de relevancia usando búsqueda semántica con embeddings.
-    
-    Args:
-        text: Texto del artículo
-        keywords: Lista de palabras clave del preset
-        
-    Returns:
-        Score normalizado 0-100
-    """
-    try:
-        from services import EmbeddingGenerator
-        import numpy as np
-        
-        # Generar embeddings
-        generator = EmbeddingGenerator()
-        text_embedding = np.array(generator.encode(text))
-        
-        # Generar embedding de las keywords (como query)
-        keywords_text = " ".join(keywords)
-        keywords_embedding = np.array(generator.encode(keywords_text))
-        
-        # Calcular similitud coseno
-        dot_product = np.dot(text_embedding, keywords_embedding)
-        norm_text = np.linalg.norm(text_embedding)
-        norm_keywords = np.linalg.norm(keywords_embedding)
-        
-        if norm_text == 0 or norm_keywords == 0:
-            return 0.0
-        
-        similarity = dot_product / (norm_text * norm_keywords)
-        
-        # Convertir similitud coseno [-1, 1] a score [0, 100]
-        # similarity de 0.5+ es buena, 0.7+ es excelente
-        # Mapeo: 0.3 -> 0, 0.5 -> 50, 0.7 -> 85, 0.9 -> 100
-        if similarity < 0.3:
-            score = 0.0
-        elif similarity < 0.5:
-            # 0.3-0.5 -> 0-50
-            score = ((similarity - 0.3) / 0.2) * 50
-        elif similarity < 0.7:
-            # 0.5-0.7 -> 50-85
-            score = 50 + ((similarity - 0.5) / 0.2) * 35
-        else:
-            # 0.7+ -> 85-100
-            score = 85 + min((similarity - 0.7) / 0.2, 1.0) * 15
-        
-        return score
-        
-    except Exception as e:
-        # Si falla búsqueda semántica, fallback a 0 (no match)
-        print(f"⚠️ Error en búsqueda semántica: {e}")
-        return 0.0
-
-def article_exists(link):
-    """Verifica si un artículo ya existe en la base de datos por URL."""
-    return Article.objects.filter(link=link).exists()
-
-def extract_article_date(entry):
-    """Extrae la fecha de publicación de una entrada RSS."""
-    if hasattr(entry, 'published'):
-        try:
-            return parser.parse(entry.published)
-        except:
-            pass
-    return timezone.now()
-
-def create_article_from_entry(source, entry, snippet, image_url, preset_name=None, score=0.0):
-    """
-    Crea un artículo en la base de datos desde una entrada RSS.
-    Genera embeddings automáticamente para búsqueda semántica.
-    
-    Retorna el artículo creado.
-    """
-    # Crear artículo
-    article = Article.objects.create(
-        source=source,
-        title=entry.title,
-        link=entry.link,
-        published_at=extract_article_date(entry),
-        snippet=snippet,
-        image_url=image_url,
-        relevance_score=score
-    )
-    
-    # Generar embedding automáticamente (solo si el campo existe en el modelo)
-    # Nota: Si pgvector no está instalado, esto se omitirá silenciosamente
-    try:
-        if hasattr(article, 'embedding') and article.embedding is None:
-            from services import EmbeddingGenerator
-            
-            # Construir texto para embedding (título + snippet)
-            text_for_embedding = article.title
-            if article.snippet:
-                text_for_embedding += " " + article.snippet
-            
-            # Generar y guardar embedding
-            generator = EmbeddingGenerator()
-            embedding = generator.encode(text_for_embedding)
-            
-            # Guardar en el artículo
-            article.embedding = embedding
-            article.save(update_fields=['embedding'])
-            
-            print(f"  🧠 Embedding generado ({len(embedding)} dims)")
-    except Exception as e:
-        # Si falla (ej: pgvector no instalado), continuar sin embeddings
-        # El artículo se guarda de todas formas, solo sin búsqueda semántica
-        pass
-    
-    print(f"✅ NUEVA: '{entry.title[:50]}...' (Preset: {preset_name or 'N/A'}, Score: {score:.1f})")
-    return article
-
-def process_rss_entry(source, entry, active_presets):
-    """
-    Procesa una entrada RSS individual con filtrado en dos pasadas.
-    
-    Primera pasada: Filtra por título y snippet del feed (rápido)
-    Segunda pasada: Descarga contenido y confirma relevancia (exhaustivo)
-    
-    Retorna: True si se creó un artículo, False si no.
-    """
-    link = entry.link
-    
-    # Evitar duplicados
-    if article_exists(link):
-        return False
-    
-    title = entry.title
-    feed_snippet = entry.summary if hasattr(entry, 'summary') else ""
-    
-    # PRIMERA PASADA: Filtro rápido en título + snippet del feed
-    # Esto ahorra descargas innecesarias
-    preliminary_text = title + " " + feed_snippet
-    match_preliminary, preset_name, score_preliminary = check_match(preliminary_text, active_presets)
-    
-    if not match_preliminary:
-        # No pasa filtro preliminar, descartamos sin descargar
-        return False
-    
-    print(f"📌 Filtro preliminar OK: '{title[:50]}...' (Preset: {preset_name}, Score: {score_preliminary:.1f})")
-    
-    # SEGUNDA PASADA: Descargar contenido completo y confirmar
-    full_content = scrape_full_text(link)
-    if not full_content:
-        # Si no se pudo scraping completo, usar snippet del feed
-        full_content = feed_snippet if feed_snippet else title
-    
-    # Confirmar relevancia con contenido completo
-    match_final, final_preset, final_score = check_match(title + " " + full_content, active_presets)
-    
-    if not match_final:
-        # Pasó preliminar pero no confirmación (falso positivo)
-        print(f"  ⚠️  Descartado tras análisis completo (falso positivo)")
-        return False
-    
-    # Obtener imagen
-    image_url = get_image_from_entry(entry)
-    
-    # Crear artículo confirmado como relevante con score final
-    create_article_from_entry(source, entry, full_content, image_url, final_preset, final_score)
-    
-    return True
-
-def sync_rss_source(source, active_presets, max_entries=10):
-    """
-    Sincroniza una fuente RSS individual.
-    Retorna: cantidad de artículos nuevos creados.
-    """
-    try:
-        feed = feedparser.parse(source.url, request_headers=HEADERS)
-        new_count = 0
-        
-        for entry in feed.entries[:max_entries]:
-            if process_rss_entry(source, entry, active_presets):
-                new_count += 1
-        
-        return new_count
-        
-    except Exception as e:
-        print(f"❌ Error en fuente {source.name}: {e}")
-        return 0
-
-def clean_invalid_articles():
-    """
-    Elimina artículos que ya no coinciden con los presets activos.
-    Retorna: cantidad de artículos eliminados.
-    """
-    print("--- RE-VALIDANDO ARTÍCULOS EXISTENTES ---")
-    
-    active_presets = get_active_presets()
-    articles = Article.objects.all()
-    deleted_count = 0
-    
-    for article in articles:
-        full_content = article.snippet or ""
-        match, _, score = check_match(article.title + " " + full_content, active_presets)
-        
-        if not match:
-            article.delete()
-            deleted_count += 1
-        else:
-            # Actualizar score si cambió
-            if article.relevance_score != score:
-                article.relevance_score = score
-                article.save(update_fields=['relevance_score'])
-    
-    print(f"--- LIMPIEZA: {deleted_count} artículos eliminados ---\n")
-    return deleted_count
-
-def sync_all_rss_sources(max_entries=10, clean_first=True):
-    """
-    Sincroniza todas las fuentes RSS activas.
-    
-    Args:
-        max_entries: Número máximo de entradas a procesar por fuente
-        clean_first: Si True, limpia artículos inválidos antes de sincronizar
-    
-    Retorna: cantidad total de artículos nuevos.
-    """
-    # Limpiar artículos obsoletos
-    if clean_first:
-        clean_invalid_articles()
-    
-    # Obtener fuentes y presets activos
-    sources = get_active_sources()
-    active_presets = get_active_presets()
-    
-    if not sources.exists():
-        print("⚠️ No hay fuentes RSS activas")
-        return 0
-    
-    print(f"--- SINCRONIZANDO {sources.count()} FUENTES RSS ---")
-    
-    total_new = 0
-    for source in sources:
-        new_count = sync_rss_source(source, active_presets, max_entries)
-        total_new += new_count
-    
-    print(f"\n--- TOTAL: {total_new} artículos nuevos ---")
-    return total_new
-
-# Alias para compatibilidad con código existente
-def fetch_latest_news():
-    """Función legacy - mantiene compatibilidad con código existente."""
-    return sync_all_rss_sources(max_entries=10, clean_first=True)
-
-def sync_database_with_filters():
-    """Función legacy - mantiene compatibilidad con código existente."""
-    return clean_invalid_articles()
-
-def calculate_content_hash(text):
-    """Calcula un hash MD5 del contenido para validación de caché."""
-    import hashlib
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
-
-def chunk_text(text, max_words=800):
-    """
-    Divide un texto largo en fragmentos manejables.
-    
-    Args:
-        text: Texto a dividir
-        max_words: Máximo de palabras por fragmento
-    
-    Retorna: Lista de fragmentos de texto
-    """
-    words = text.split()
-    chunks = []
-    
-    for i in range(0, len(words), max_words):
-        chunk = ' '.join(words[i:i + max_words])
-        chunks.append(chunk)
-    
-    return chunks
-
-def get_available_gemini_model():
-    """Obtiene un modelo Gemini disponible."""
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                return m.name
-    except:
-        pass
-    return 'models/gemini-1.5-flash'
-
-def summarize_text_chunk(model, chunk, is_final=False):
-    """
-    Resume un fragmento de texto individual.
-    
-    Args:
-        model: Modelo Gemini configurado
-        chunk: Texto del fragmento
-        is_final: Si es el resumen final (combina chunks previos)
-    
-    Retorna: Texto del resumen
-    """
-    if is_final:
-        # Resumen final que combina mini-resúmenes
-        prompt = """
-Resume el siguiente contenido en 3-5 puntos clave siguiendo el formato de las 5W del periodismo.
-Usa HTML con viñetas (<ul><li>). Estructura:
-
-1. QUÉ/QUIÉN: El hecho principal y protagonistas
-2. DÓNDE/CUÁNDO: Ubicación y tiempo del evento
-3. POR QUÉ/CÓMO: Contexto, causas o método
-4. IMPACTO: Consecuencias o importancia
-5. QUÉ SIGUE (si aplica): Próximos pasos o situación futura
-
-Sé conciso, objetivo y claro. Usa español neutral.
-
-Texto a resumir:
-""" + chunk
-    else:
-        # Resumen de un fragmento individual
-        prompt = f"""
-Resume los puntos principales del siguiente fragmento de noticia de forma concisa.
-Enfócate en hechos concretos, protagonistas y datos relevantes.
-
-Fragmento:
-{chunk}
-"""
-    
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"Error resumiendo fragmento: {str(e)}"
-
-def generate_ai_summary(article_id):
-    """
-    Genera un resumen IA para un artículo usando chunking para textos largos.
-    Implementa formato 5W (quién, qué, dónde, cuándo, por qué).
-    Valida caché de resúmenes usando content_hash.
-    """
-    try:
-        article = Article.objects.get(id=article_id)
-        
-        # Obtener contenido a resumir
-        content = article.snippet or ""
-        if not content or len(content) < 100:
-            article.ai_summary = "⚠️ <strong>Contenido insuficiente</strong> para generar resumen."
-            article.save()
-            return False
-        
-        # Calcular hash del contenido actual
-        current_hash = calculate_content_hash(content)
-        
-        # Verificar si ya existe un resumen válido
-        if article.ai_summary and article.content_hash == current_hash:
-            print(f"📋 Resumen en caché válido para: {article.title[:50]}...")
-            return True  # Resumen existente y válido, no regenerar
-        
-        # Si el hash no coincide o no hay resumen, generamos uno nuevo
-        if article.ai_summary and article.content_hash != current_hash:
-            print(f"🔄 Contenido modificado, regenerando resumen...")
-        
-        # Obtener modelo disponible
-        model_name = get_available_gemini_model()
-        model = genai.GenerativeModel(model_name)
-        
-        # Determinar si necesitamos chunking
-        word_count = len(content.split())
-        
-        if word_count <= 800:
-            # Texto corto - resumen directo
-            summary = summarize_text_chunk(model, content, is_final=True)
-        else:
-            # Texto largo - dividir en chunks, resumir cada uno, luego combinar
-            print(f"📄 Artículo largo ({word_count} palabras) - usando chunking")
-            
-            chunks = chunk_text(content, max_words=800)
-            chunk_summaries = []
-            
-            for i, chunk in enumerate(chunks):
-                print(f"  Resumiendo fragmento {i+1}/{len(chunks)}...")
-                chunk_summary = summarize_text_chunk(model, chunk, is_final=False)
-                chunk_summaries.append(chunk_summary)
-                time.sleep(0.5)  # Pequeña pausa entre chunks
-            
-            # Combinar resúmenes de chunks y hacer resumen final
-            combined = "\n\n".join(chunk_summaries)
-            print(f"  Generando resumen final...")
-            summary = summarize_text_chunk(model, combined, is_final=True)
-        
-        # Guardar resumen y hash
-        article.ai_summary = summary
-        article.content_hash = current_hash
-        article.save()
-        
-        print(f"✅ Resumen generado para: {article.title[:50]}...")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error generando resumen: {str(e)}")
-        article.ai_summary = f"⚠️ <strong>ERROR TÉCNICO:</strong> {str(e)}"
-        article.save()
-        return False
-
-# --- 4. ROBOT DE SUTRA (MODO INSEGURO ACTIVADO) ---
-def check_sutra_status(measure_id):
-    """
-    Verifica estado en SUTRA ignorando errores SSL.
-    """
-    clean_id = measure_id.lower().replace("p. de la c.", "pc").replace(" ", "").replace(".", "")
-    base_url = f"https://sutra.oslpr.org/osl/es/medidas/{clean_id}"
-    
-    try:
-        # verify=False ES LA CLAVE PARA ARREGLAR TU ERROR
-        response = requests.get(base_url, headers=HEADERS, timeout=10, verify=False)
-        
-        if response.status_code == 200:
-            return True, f"Conexión exitosa: {base_url}"
-        else:
-            return False, f"No encontrado (Status {response.status_code})"
-    except Exception as e:
-        return False, f"Error de conexión: {str(e)}"
+--- a/.gitignore+++ b/.gitignore@@ -31,3 +31,7 @@ # OS
+ .DS_Store
+ Thumbs.db
++
++# Environment files
++.env
++.env.*
+--- a/core/views.py+++ b/core/views.py@@ -57,6 +57,9 @@         'recent_bills': Bill.objects.all().order_by('-last_updated')[:5],
+         'recent_events': Event.objects.all().order_by('-date')[:5],
+         'monitored_measures': monitored_data,
++        'keywords': Keyword.objects.all().order_by('term'),
++        'comms': MonitoredCommission.objects.filter(is_active=True).order_by('name'),
++        'available_commissions': sorted(AVAILABLE_COMMISSIONS),
+     }
+     return render(request, 'core/dashboard.html', context)
+@@ -314,9 +317,18 @@
+ def delete_item(request, item_type, item_id):
+-    model_map = {'keyword': Keyword, 'measure': MonitoredMeasure, 'commission': MonitoredCommission, 'preset': NewsPreset}
+-    if item_type in model_map:
+-        get_object_or_404(model_map[item_type], id=item_id).delete()
+-    return redirect('configuracion')
++    model_map = {
++        'keyword': Keyword,
++        'measure': MonitoredMeasure,
++        'commission': MonitoredCommission,
++        'preset': NewsPreset,
++    }
++    if item_type in model_map:
++        get_object_or_404(model_map[item_type], id=item_id).delete()
++
++    # Redirección según área
++    if item_type in {'keyword', 'measure', 'commission'}:
++        return redirect('dashboard_configuracion')
++    return redirect('configuracion')
+--- a/core/templates/core/dashboard.html+++ b/core/templates/core/dashboard.html@@ -1,200 +1,200 @@
+ {% extends 'core/base.html' %} 
+ 
+ {% block content %}
+ <div class="p-6 bg-gray-50 min-h-screen">
+@@ -55,7 +55,7 @@
+                 <div class="flex justify-between items-center bg-gray-50">
+                     <h3 class="font-bold text-gray-700"><i class="fas fa-satellite-dish mr-2 text-purple-500"></i> Rastreador SUTRA (En Vivo)</h3>
+-                    <a href="{% url 'configuracion' %}" class="text-xs text-blue-600 hover:underline">Configurar</a>
++                    <a href="{% url 'dashboard_configuracion' %}" class="text-xs text-blue-600 hover:underline">Configurar</a>
+                 </div>
+                 <div class="p-0">
+                     {% if monitored_measures %}
+@@ -160,7 +160,7 @@
+                     <div class="flex flex-wrap gap-2 max-h-60 overflow-y-auto">
+                         {% for comm in comms %}
+                         <span class="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+@@ -220,7 +220,7 @@
+                 </form>
+ 
+-                <form method="POST" action="{% url 'configuracion' %}" class="flex gap-2 items-center mb-3">
++                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="flex gap-2 items-center mb-3">
+                     {% csrf_token %}
+                     <input type="text" name="keyword" placeholder="Añadir keyword" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+                     <button type="submit" name="add_keyword" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+@@ -260,7 +260,7 @@
+                 </form>
+ 
+-                <form method="POST" action="{% url 'configuracion' %}" class="grid grid-cols-1 gap-2 mb-3">
++                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="grid grid-cols-1 gap-2 mb-3">
+                     {% csrf_token %}
+                     <input type="text" name="measure_id" placeholder="Añadir medida (ej: P. de la C. 123)" class="px-3 py-2 border rounded-lg text-sm">
+                     <button type="submit" name="add_measure" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+@@ -320,7 +320,7 @@
+                 </form>
+ 
+-                <form method="POST" action="{% url 'configuracion' %}" class="flex gap-2 items-center mb-3">
++                <form method="POST" action="{% url 'dashboard_configuracion' %}" class="flex gap-2 items-center mb-3">
+                     {% csrf_token %}
+                     <select name="commission_name" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+                         {% for c in available_commissions %}
+--- a/core/templates/core/dashboard_configuracion.html+++ b/core/templates/core/dashboard_configuracion.html@@ -1,9999 +1,9999 @@
+ {% extends 'core/base.html' %}
+ 
+ {% block content %}
+ <div class="p-8 min-h-screen bg-[#f5f6fa]">
+@@
+ </div>
+ {% endblock %}
+--- a/requirements.txt+++ b/requirements.txt@@ -1,30 +1,30 @@
+ Django==5.1.3
+ dj-database-url==2.3.0
+ google-generativeai==0.8.3
+ requests==2.32.3
+ beautifulsoup4==4.12.3
+ feedparser==6.0.11
+ lxml==5.3.0
+ gunicorn==23.0.0
+ python-dotenv==1.0.1
+ urllib3==2.2.2
+ psycopg2-binary==2.9.10
+ django-allauth==65.0.1
+ djangorestframework==3.15.2
+ django-jazzmin==3.0.1
+ django-unfold==0.76.0
+ django-import-export==4.1.1
+ django-environ==0.11.2
+ django-cors-headers==4.4.0
+ pgvector==0.3.6
+ sentence-transformers==3.2.1
+ torch==2.5.1
+ transformers==4.46.3
+ numpy==1.26.4
+ scikit-learn==1.5.2
+ python-dateutil==2.9.0.post0
+ pandas==2.2.3
+ rank-bm25==0.2.2

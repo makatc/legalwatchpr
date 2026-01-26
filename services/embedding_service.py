@@ -24,6 +24,7 @@ import threading
 from typing import List, Optional
 
 from sentence_transformers import SentenceTransformer
+from app.modules.search.hybrid_search import hybrid_search_function
 
 logger = logging.getLogger(__name__)
 

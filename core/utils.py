@@ -97,7 +97,7 @@ def fetch_latest_news(limit: int = 10):
     """
     Fetch latest news/articles by syncing RSS sources.
     """
-    from core.scrapers import sync_all_rss_sources
+    from app.modules.noticias.scraper import sync_all_rss_sources
     return sync_all_rss_sources(max_entries=10)
 
 
@@ -199,3 +199,4 @@ def analyze_bill_relevance(bill):
         # Log concise error without exc_info to avoid leaking sensitive details
         logger.error("analyze_bill_relevance unexpected error: %s", str(e))
         return {"score": 0, "analysis": "API Error"}
+from app.modules.sutra.scheduler import scheduler_function

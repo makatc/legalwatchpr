@@ -1,10 +1,20 @@
 import os
 import sys
+from pathlib import Path
 
-# Ensure project root is on sys.path
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+# Robustly locate project root (allow override via LW_PROJECT_ROOT)
+_env_root = os.getenv('LW_PROJECT_ROOT')
+if _env_root:
+    ROOT = Path(_env_root).resolve()
+else:
+    cur = Path(__file__).resolve().parent
+    while not (cur / 'manage.py').exists() and cur.parent != cur:
+        cur = cur.parent
+    ROOT = cur
+
+ROOT_STR = str(ROOT)
+if ROOT_STR not in sys.path:
+    sys.path.insert(0, ROOT_STR)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 import django

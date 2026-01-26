@@ -9,9 +9,20 @@ generando embeddings y ejecutando búsquedas.
 import os
 import sys
 import django
+from pathlib import Path
 
-# Configurar Django
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Configure Django: robust project-root detection (supports LW_PROJECT_ROOT)
+_env_root = os.getenv('LW_PROJECT_ROOT')
+if _env_root:
+    _root = Path(_env_root).resolve()
+else:
+    _root = Path(__file__).resolve().parent
+    while not (_root / 'manage.py').exists() and _root.parent != _root:
+        _root = _root.parent
+
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 

@@ -3,9 +3,6 @@
 import os
 import sys
 
-# Add app/modules to PYTHONPATH
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app', 'modules'))
-
 
 def main():
     """Run administrative tasks."""

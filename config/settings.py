@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_apscheduler',  # Scheduler automático
     'core',  # TU APP PRINCIPAL
-    'django.contrib.postgres',  # Required for SearchVectorField
 ]
 
 MIDDLEWARE = [

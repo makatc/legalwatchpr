@@ -23,7 +23,7 @@ python -m pytest -q
 
 Variables de entorno relevantes:
 - `LW_PROJECT_ROOT`: opcional — fuerza la raíz del proyecto usada por el resolver.
-- `LW_CONFIG_DIR`, `LW_SQL_DIR`, `LW_SCRIPTS_DIR`: opcionales — sobreescriben carpetas detectadas.
+- `LW_CONFIG_DIR`, `LW_SQL_DIR`, `LW_SCRIPTS_DIR`, `LW_TEMPLATES_DIR`, `LW_STATIC_DIR`, `LW_DATA_DIR`: opcionales — sobreescriben las carpetas detectadas para configuración, SQL, scripts, plantillas, estáticos y datos respectivamente.
 
 Notas:
 - No se cambió la lógica de negocio; las modificaciones son de estructura/arranque únicamente.

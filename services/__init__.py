@@ -1,8 +1,10 @@
 """Services package for LegalWatchPR.
 
-This module exposes a small public surface while avoiding heavy
-aggregate imports at package import time to reduce circular import
-issues. Attributes are imported lazily when accessed.
+This module exposes a small public surface and uses lazy imports so
+that heavy submodules are only loaded when their attributes are first
+accessed. This can reduce import-time overhead but does not by itself
+prevent circular imports if submodules import from ``services`` instead
+of importing directly from their sibling modules.
 """
 from typing import Any
 
@@ -30,5 +32,5 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module 'services' has no attribute '{name}'")
 
 
-def __dir__():
+def __dir__() -> list[str]:
     return sorted(list(__all__))

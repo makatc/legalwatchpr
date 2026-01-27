@@ -104,11 +104,11 @@ USE_TZ = True
 
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, IMÁGENES) ---
 STATIC_URL = 'static/'
-STATIC_ROOT = str(Path(BASE_DIR) / 'static')
+STATIC_ROOT = str(BASE_DIR / 'static')
 
 # --- CONFIGURACIÓN DE ARCHIVOS MULTIMEDIA (PDFs/WORD) ---
 MEDIA_URL = '/media/'
-MEDIA_ROOT = str(Path(BASE_DIR) / 'media')
+MEDIA_ROOT = str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

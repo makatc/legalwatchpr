@@ -16,11 +16,18 @@ from datetime import datetime, timedelta
 _env_root = os.getenv('LW_PROJECT_ROOT')
 if _env_root:
     _root = Path(_env_root).resolve()
+    if not (_root / 'manage.py').exists():
+        raise RuntimeError(
+            f"LW_PROJECT_ROOT is set to '{_root}', but no manage.py was found there."
+        )
 else:
     _root = Path(__file__).resolve().parent
     while not (_root / 'manage.py').exists() and _root.parent != _root:
         _root = _root.parent
-    _root = _root
+    if not (_root / 'manage.py').exists():
+        raise RuntimeError(
+            f"Could not locate manage.py starting from '{Path(__file__).resolve()}'"
+        )
 
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))

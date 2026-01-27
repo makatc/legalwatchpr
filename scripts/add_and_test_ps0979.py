@@ -8,8 +8,11 @@ if _env_root:
     cur = Path(_env_root).resolve()
 else:
     cur = Path(__file__).resolve().parent
+
+# Walk up to find manage.py
 while not (cur / 'manage.py').exists() and cur.parent != cur:
     cur = cur.parent
+
 ROOT = cur
 
 if not (ROOT / 'manage.py').exists():

@@ -21,12 +21,13 @@ if _env_root:
             f"LW_PROJECT_ROOT is set to '{_root}', but no manage.py was found there."
         )
 else:
-    _root = Path(__file__).resolve().parent
+    _start = Path(__file__).resolve()
+    _root = _start.parent
     while not (_root / 'manage.py').exists() and _root.parent != _root:
         _root = _root.parent
     if not (_root / 'manage.py').exists():
         raise RuntimeError(
-            f"Could not locate manage.py starting from '{Path(__file__).resolve()}'"
+            f"Could not locate manage.py starting from '{_start}'"
         )
 
 if str(_root) not in sys.path:

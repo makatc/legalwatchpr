@@ -36,7 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           # paquetes adicionales requeridos por los tests en CI (evitar paquetes ML pesados)
-          pip install pytest pytest-django feedparser django-apscheduler icalendar psycopg2-binary
+          pip install pytest pytest-django feedparser django-apscheduler icalendar djangorestframework psycopg2-binary
 
       - name: Prepare DB and run migrations
         env:

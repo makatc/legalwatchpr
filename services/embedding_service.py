@@ -22,7 +22,10 @@ Uso:
 from __future__ import annotations
 
 import logging
+import os
 import threading
+import hashlib
+import math
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -78,9 +81,17 @@ class EmbeddingGenerator:
         """
         if self._initialized:
             return
-        
+
         with self._lock:
             if not self._initialized:
+                # If running in CI or explicit mock mode, skip loading heavy ML libs
+                ci_mock = os.getenv("LW_CI_MOCK_EMBEDDINGS") or os.getenv("CI")
+                if ci_mock:
+                    logger.info("CI/mock mode detected: using deterministic mock embeddings")
+                    self._model = None
+                    self._initialized = True
+                    return
+
                 try:
                     logger.info(f"Cargando modelo: {self.MODEL_NAME}")
                     # Import heavy ML dependency lazily to avoid import-time failures
@@ -174,7 +185,30 @@ class EmbeddingGenerator:
         try:
             # Generar embedding
             logger.debug(f"Generando embedding para texto de {len(text)} caracteres")
-            
+
+            # If running in mock mode (CI), return a deterministic pseudo-random vector
+            if self._model is None:
+                # Deterministic hash-based pseudo-random floats in [-1, 1]
+                h = hashlib.blake2b(text.encode('utf-8'), digest_size=16).digest()
+                # Expand hash into floats
+                vals: List[float] = []
+                i = 0
+                while len(vals) < self.DIMENSION:
+                    # Re-hash to get more entropy
+                    h = hashlib.blake2b(h, digest_size=16).digest()
+                    for b in h:
+                        if len(vals) >= self.DIMENSION:
+                            break
+                        # Map byte to [-1,1]
+                        vals.append((b / 255.0) * 2.0 - 1.0)
+
+                # Optionally normalize to unit vector for cosine similarity
+                if normalize:
+                    norm = math.sqrt(sum(x * x for x in vals)) or 1.0
+                    vals = [x / norm for x in vals]
+
+                return vals
+
             # SentenceTransformers retorna numpy array
             embedding_array = self._model.encode(
                 text,
@@ -182,20 +216,20 @@ class EmbeddingGenerator:
                 normalize_embeddings=normalize,
                 show_progress_bar=False
             )
-            
+
             # Convertir a lista de floats nativos de Python (compatible con pgvector)
             embedding_list = embedding_array.astype(float).tolist()
-            
+
             # Verificar dimensión
             if len(embedding_list) != self.DIMENSION:
                 raise RuntimeError(
                     f"Dimensión incorrecta: esperado {self.DIMENSION}, obtenido {len(embedding_list)}"
                 )
-            
+
             logger.debug(f"✅ Embedding generado exitosamente: {self.DIMENSION} dimensiones")
-            
+
             return embedding_list
-            
+
         except Exception as e:
             logger.error(f"❌ Error al generar embedding: {e}")
             raise RuntimeError(f"Error al generar embedding: {e}") from e
@@ -243,7 +277,11 @@ class EmbeddingGenerator:
         
         try:
             logger.info(f"Generando embeddings para {len(cleaned_texts)} textos en batch")
-            
+
+            # If mock mode (CI), generate deterministic vectors per text
+            if self._model is None:
+                return [self.encode(t, normalize=normalize) for t in cleaned_texts]
+
             # Generar embeddings en batch (más eficiente)
             embeddings_array = self._model.encode(
                 cleaned_texts,
@@ -252,17 +290,17 @@ class EmbeddingGenerator:
                 show_progress_bar=len(cleaned_texts) > 10,  # Mostrar progreso solo si hay muchos
                 batch_size=32  # Procesar en lotes de 32
             )
-            
+
             # Convertir a lista de listas de floats
             embeddings_list = [
-                row.astype(float).tolist() 
+                row.astype(float).tolist()
                 for row in embeddings_array
             ]
-            
+
             logger.info(f"✅ {len(embeddings_list)} embeddings generados exitosamente")
-            
+
             return embeddings_list
-            
+
         except Exception as e:
             logger.error(f"❌ Error al generar embeddings en batch: {e}")
             raise RuntimeError(f"Error al generar embeddings en batch: {e}") from e

@@ -19,11 +19,15 @@ Uso:
     # embedding es una lista de 384 floats
 """
 
+from __future__ import annotations
+
 import logging
 import threading
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
-from sentence_transformers import SentenceTransformer
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,7 @@ class EmbeddingGenerator:
     
     _instance: Optional['EmbeddingGenerator'] = None
     _lock = threading.Lock()
-    _model: Optional[SentenceTransformer] = None
+    _model: Optional['SentenceTransformer'] = None
     
     def __new__(cls):
         """
@@ -79,6 +83,8 @@ class EmbeddingGenerator:
             if not self._initialized:
                 try:
                     logger.info(f"Cargando modelo: {self.MODEL_NAME}")
+                    # Import heavy ML dependency lazily to avoid import-time failures
+                    from sentence_transformers import SentenceTransformer
                     self._model = SentenceTransformer(self.MODEL_NAME)
                     self._initialized = True
                     logger.info(f"✅ Modelo cargado exitosamente. Dimensión: {self.DIMENSION}")
@@ -296,3 +302,4 @@ def generate_embedding(text: str) -> List[float]:
     """
     generator = EmbeddingGenerator()
     return generator.encode(text)
+# end of module

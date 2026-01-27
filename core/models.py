@@ -1,10 +1,8 @@
 from datetime import time
 
-import docx  # LIBRERÍA NUEVA PARA WORD
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
-from pypdf import PdfReader
 from pgvector.django import VectorField, HnswIndex
 
 # --- 1. GESTIÓN DE NOTICIAS ---
@@ -59,6 +57,9 @@ class Article(models.Model):
         if self.snippet:
             import hashlib
             self.content_hash = hashlib.md5(self.snippet.encode('utf-8')).hexdigest()
+        # Ejemplo de manejo perezoso de PDF/DOCX: importar solo cuando se usa
+        # (evita fallos en import time si librerías no están instaladas)
+        # Si en el futuro se necesita procesar archivos, importar `pypdf`/`docx` dentro del bloque.
         super().save(*args, **kwargs)
 
     def __str__(self): return self.title
@@ -122,16 +123,28 @@ class BillVersion(models.Model):
                 
                 # A. SI ES PDF
                 if file_path.lower().endswith('.pdf'):
-                    reader = PdfReader(file_path)
-                    for page in reader.pages:
-                        text = page.extract_text()
-                        if text: extracted_text += text + "\n"
+                    try:
+                        from pypdf import PdfReader
+                        reader = PdfReader(file_path)
+                        for page in reader.pages:
+                            text = page.extract_text()
+                            if text:
+                                extracted_text += text + "\n"
+                    except ImportError:
+                        # pypdf not installed in this environment; skip extraction
+                        pass
                 
                 # B. SI ES WORD (.DOCX) - NUEVO
                 elif file_path.lower().endswith('.docx'):
-                    doc = docx.Document(file_path)
-                    for para in doc.paragraphs:
-                        if para.text: extracted_text += para.text + "\n"
+                    try:
+                        import docx
+                        doc = docx.Document(file_path)
+                        for para in doc.paragraphs:
+                            if para.text:
+                                extracted_text += para.text + "\n"
+                    except ImportError:
+                        # python-docx not installed; skip extraction
+                        pass
                 
                 # Guardar el texto extraído
                 if extracted_text:

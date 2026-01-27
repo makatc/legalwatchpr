@@ -5,11 +5,21 @@ Ejecutar después de aplicar la migración 0022
 
 import os
 import django
+import pytest
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
+try:
+    django.setup()
+except RuntimeError:
+    # django.setup() may have been called already during collection; ignore re-entrant setup
+    pass
+
+# These tests need DB access
+pytestmark = pytest.mark.django_db
 
 from core.models import Article, NewsSource
+from django.utils import timezone
+import datetime as _dt
 from django.db import connection
 
 def test_trigger():
@@ -52,7 +62,7 @@ def test_trigger():
         snippet="El Senado aprobó hoy una importante ley que fortalece la transparencia en Puerto Rico.",
         ai_summary="Nueva legislación sobre transparencia en el gobierno de Puerto Rico.",
         link="https://test.com/article-" + str(hash("test1")),
-        published_at="2026-01-23 12:00:00"
+        published_at=timezone.make_aware(_dt.datetime(2026, 1, 23, 12, 0, 0))
     )
     
     # Verificar que search_vector se actualizó automáticamente
@@ -112,7 +122,7 @@ def test_trigger():
         title="Justicia en Puerto Rico",
         snippet="Tema diferente aquí",
         link="https://test.com/a1",
-        published_at="2026-01-23 12:01:00"
+        published_at=timezone.make_aware(_dt.datetime(2026, 1, 23, 12, 1, 0))
     )
     
     # Palabra solo en snippet (peso B)
@@ -121,7 +131,7 @@ def test_trigger():
         title="Otro tema aquí",
         snippet="La justicia prevalece en este caso",
         link="https://test.com/a2",
-        published_at="2026-01-23 12:02:00"
+        published_at=timezone.make_aware(_dt.datetime(2026, 1, 23, 12, 2, 0))
     )
     
     # Palabra solo en ai_summary (peso C - menor)
@@ -131,7 +141,7 @@ def test_trigger():
         snippet="Sin relación con el concepto",
         ai_summary="Resumen sobre justicia",
         link="https://test.com/a3",
-        published_at="2026-01-23 12:03:00"
+        published_at=timezone.make_aware(_dt.datetime(2026, 1, 23, 12, 3, 0))
     )
     
     # Buscar y ordenar por relevancia
@@ -163,7 +173,7 @@ def test_trigger():
         title="Educación pública en Puerto Rico",
         snippet="Nueva política educativa",
         link="https://test.com/accents",
-        published_at="2026-01-23 12:04:00"
+        published_at=timezone.make_aware(_dt.datetime(2026, 1, 23, 12, 4, 0))
     )
     
     # Buscar con y sin tildes

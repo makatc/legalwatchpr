@@ -22,7 +22,7 @@ from typing import Any, Dict, List
 
 from django.db import connection
 
-from services import EmbeddingGenerator
+from services.embedding_service import EmbeddingGenerator
 
 logger = logging.getLogger(__name__)
 

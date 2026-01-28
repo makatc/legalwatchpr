@@ -13,7 +13,10 @@ def _find_project_root(start_path: Path) -> Path:
         if cur.parent == cur:
             break
         cur = cur.parent
-    raise RuntimeError('Could not locate project root (manage.py or requirements.txt). Set LW_PROJECT_ROOT to override.')
+    raise RuntimeError(
+        f'Could not locate project root by searching upward from {start_path} '
+        f'(looking for {", ".join(sorted(root_indicators))}). Set LW_PROJECT_ROOT to override.'
+    )
 
 
 def get_project_root() -> Path:

@@ -7,6 +7,7 @@ def test_project_root_and_dirs_exist():
     assert paths.PROJECT_ROOT.exists(), f"PROJECT_ROOT not found: {paths.PROJECT_ROOT}"
     assert paths.CONFIG_DIR.exists(), f"CONFIG_DIR not found: {paths.CONFIG_DIR}"
     assert paths.SQL_DIR.exists(), f"SQL_DIR not found: {paths.SQL_DIR}"
+    assert paths.SCRIPTS_DIR.exists(), f"SCRIPTS_DIR not found: {paths.SCRIPTS_DIR}"
 
 
 def test_django_check_runs():

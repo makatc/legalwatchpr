@@ -24,8 +24,8 @@ from collections import defaultdict
 from statistics import mean, median
 from typing import Any, Dict, List, Set, Tuple
 
-from services import (search_documents, search_keyword_only,
-                      search_semantic_only)
+from services.hybrid_search import (search_documents, search_keyword_only,
+                                     search_semantic_only)
 
 logger = logging.getLogger(__name__)
 

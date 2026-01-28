@@ -2,9 +2,14 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Set BASE_DIR and load environment variables from .env
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(os.path.join(BASE_DIR, '.env'))
+# Resolve BASE_DIR from central resolver when available; fall back to file layout
+try:
+    from core.utils.paths import PROJECT_ROOT as BASE_DIR  # type: ignore
+except Exception:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env at project root
+load_dotenv(str(BASE_DIR / '.env'))
 
 # Expose API keys to Django settings (fallback from .env)
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
@@ -15,7 +20,6 @@ VERSION = '1.1'
 
 # --- RUTAS BASE ---
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SEGURIDAD ---
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -100,11 +104,11 @@ USE_TZ = True
 
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, IMÁGENES) ---
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = str(BASE_DIR / 'static')
 
 # --- CONFIGURACIÓN DE ARCHIVOS MULTIMEDIA (PDFs/WORD) ---
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -18,16 +18,9 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 # Versión de la aplicación
 VERSION = '1.1'
 
-# --- RUTAS BASE ---
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-
 # --- SEGURIDAD ---
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-clave-secreta-para-legalwatch-ai-remplazar-en-prod')
-
-# SECURITY WARNING: don't run with debug turned on in production!
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-prod')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # --- APLICACIONES INSTALADAS ---
@@ -38,9 +31,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_apscheduler',  # Scheduler automático
-    'core',  # TU APP PRINCIPAL
-    'django.contrib.postgres',  # Required for SearchVectorField
+    'django_apscheduler',
+    'core',
+    'django.contrib.postgres',
+    'rest_framework',  # Agregado explícitamente
 ]
 
 MIDDLEWARE = [
@@ -80,9 +74,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),  # Ensure the database name is 'legalwatchpr_db'
+        'NAME': os.getenv('DB_NAME', 'legalwatchpr_db'),
         'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'LegalWatch2026!PR'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Seguro por defecto
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
     }
@@ -102,39 +96,33 @@ TIME_ZONE = 'America/Puerto_Rico'
 USE_I18N = True
 USE_TZ = True
 
-# --- ARCHIVOS ESTÁTICOS (CSS, JS, IMÁGENES) ---
+# --- ARCHIVOS ESTÁTICOS ---
 STATIC_URL = 'static/'
 STATIC_ROOT = str(BASE_DIR / 'static')
 
-# --- CONFIGURACIÓN DE ARCHIVOS MULTIMEDIA (PDFs/WORD) ---
+# --- MEDIA ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- CONFIGURACIÓN DE LOGIN/LOGOUT (LO NUEVO) ---
-LOGIN_REDIRECT_URL = 'dashboard'  # Al entrar, ir al Dashboard
-LOGOUT_REDIRECT_URL = 'login'     # Al salir, ir al Login
-LOGIN_URL = 'login'               # Si intentan entrar sin permiso, mandar al Login
+# --- LOGIN/LOGOUT ---
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'login'
 
-# --- CONFIGURACIÓN DE SEGURIDAD ---
+# --- SEGURIDAD ---
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
 # Rate limiting
-RATE_LIMIT_REQUESTS = 100  # requests per window
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_SKIP_PATHS = [
-    '/admin/',
-    '/static/',
-    '/media/',
-]
+RATE_LIMIT_REQUESTS = 100
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_SKIP_PATHS = ['/admin/', '/static/', '/media/']
+MAX_REQUEST_SIZE = 10 * 1024 * 1024
 
-# Request validation
-MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 10MB
-
-# --- CONFIGURACIÓN DE EMBEDDINGS ---
+# --- EMBEDDINGS ---
 EMBEDDING_PROVIDER = 'sentence_transformers'
 EMBEDDING_MODEL = 'paraphrase-multilingual-MiniLM-L12-v2'
 EMBEDDING_DIMENSION = 384

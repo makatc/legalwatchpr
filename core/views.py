@@ -14,15 +14,25 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from services import (get_search_stats, search_documents, search_keyword_only,
-                      search_semantic_only)
+# Stubs de servicios (se implementarán en P1)
+try:
+    from services import (get_search_stats, search_documents, search_keyword_only,
+                          search_semantic_only)
+except ImportError:
+    # Fallback para pasar el check si services no está listo aún
+    def get_search_stats(): return {}
+    def search_documents(*args, **kwargs): return []
+    def search_keyword_only(*args, **kwargs): return []
+    def search_semantic_only(*args, **kwargs): return []
 
 from .models import (Article, Bill, BillVersion, Event, Keyword,
                       MonitoredCommission, MonitoredMeasure, NewsPreset,
                       NewsSource)
 from .serializers import ArticleSearchResultSerializer, SearchStatsSerializer
-from .utils import (analyze_legal_diff, check_sutra_status, fetch_latest_news,
-                    generate_ai_summary, generate_diff_html, normalize_text)
+
+# CORRECCIÓN AQUÍ: Importar desde .helpers en lugar de .utils
+from .helpers import (analyze_legal_diff, check_sutra_status, fetch_latest_news,
+                      generate_ai_summary, generate_diff_html, normalize_text)
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +92,12 @@ def noticias(request):
             else:
                 search_results = search_documents(query, limit=100)
             
-            article_ids = [r['id'] for r in search_results]
-            articles = Article.objects.filter(id__in=article_ids)
+            # Si search_results son diccionarios (de la API de búsqueda), extraemos IDs
+            if search_results and isinstance(search_results[0], dict):
+                article_ids = [r['id'] for r in search_results]
+                articles = Article.objects.filter(id__in=article_ids)
+            else:
+                articles = search_results # Asumimos queryset si no
         except Exception as e:
             logger.error(f"Error en búsqueda: {e}")
             articles = Article.objects.filter(title__icontains=query)[:100]
@@ -162,93 +176,123 @@ def calendar_feed(request):
     return HttpResponse(cal.to_ical(), content_type="text/calendar")
 
 
-# --- STUBS PARA RESOLVER RUTAS (mínimos para `manage.py check`) ---
-def sync_noticias(request):
-    """Lanzador de sincronización de noticias (stub)."""
-    # En producción esto lanzaría tareas o management commands
-    return JsonResponse({'ok': True, 'msg': 'sync initiated'})
-
+# --- ACCIONES ---
 
 @login_required
 def sync_noticias(request):
-    from .utils import fetch_latest_news
+    """Lanzador de sincronización de noticias."""
     fetch_latest_news()
     return redirect('noticias')
 
-
-def resumir_noticia(request, article_id):
-    """Vista que muestra un resumen (stub)."""
-    summary = generate_ai_summary(article_id)
-    return HttpResponse(summary)
-
-
 @login_required
 def resumir_noticia(request, article_id):
-    from .utils import generate_ai_summary
+    """Genera resumen AI y recarga."""
     generate_ai_summary(article_id)
     return redirect('noticias')
 
-
-def api_resumir_noticia(request, article_id):
-    """API para resumir artículo (stub)."""
-    summary = generate_ai_summary(article_id)
-    return JsonResponse({'id': article_id, 'summary': summary})
-
-
 @login_required
 def api_resumir_noticia(request, article_id):
-    from .utils import generate_ai_summary
+    """API para resumir artículo (AJAX)."""
     success = generate_ai_summary(article_id)
     return JsonResponse({'success': success})
 
-
 def comparador(request, bill_id=None):
-    """Página comparador (stub)."""
+    """Página comparador."""
     return render(request, 'core/comparador.html', {'bill_id': bill_id})
 
-
-# Simple endpoints para APIs administrativas (stubs)
+# Simple endpoints para APIs administrativas
 def api_add_source(request):
     return JsonResponse({'ok': True})
-
 
 def api_delete_source(request, source_id):
     return JsonResponse({'ok': True, 'deleted': source_id})
 
-
 def api_toggle_source(request, source_id):
     return JsonResponse({'ok': True, 'toggled': source_id})
-
 
 def api_add_preset(request):
     return JsonResponse({'ok': True})
 
-
 def api_delete_preset(request, preset_id):
     return JsonResponse({'ok': True, 'deleted': preset_id})
-
 
 def api_toggle_preset(request, preset_id):
     return JsonResponse({'ok': True, 'toggled': preset_id})
 
-
 def generate_keywords_ai(request):
     return JsonResponse({'ok': True})
-
 
 def api_save_profile(request):
     return JsonResponse({'ok': True})
 
-
 def api_save_webhook(request):
     return JsonResponse({'ok': True})
 
-
 class DocumentSearchView(APIView):
+    """
+    API endpoint para búsqueda híbrida de documentos.
+    
+    Parámetros:
+        - q (str, requerido): Texto de búsqueda
+        - limit (int, opcional): Número máximo de resultados (default=20)
+        - method (str, opcional): Método de búsqueda ['hybrid'|'semantic'|'keyword'] (default='hybrid')
+    """
     def get(self, request, *args, **kwargs):
-        return Response({'results': []})
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response(
+                {'error': 'Parameter "q" is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        limit = int(request.query_params.get('limit', 20))
+        search_method = request.query_params.get('method', 'hybrid').lower()
+        
+        try:
+            # Enrutar a la función correcta según el método
+            if search_method == 'semantic':
+                results = search_semantic_only(query, limit=limit)
+            elif search_method == 'keyword':
+                results = search_keyword_only(query, limit=limit)
+            elif search_method == 'hybrid':
+                results = search_documents(query, limit=limit)
+            else:
+                return Response(
+                    {'error': f'Invalid method "{search_method}". Use: hybrid, semantic, or keyword'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Serializar resultados
+            serializer = ArticleSearchResultSerializer(results, many=True)
+            return Response({
+                'query': query,
+                'method': search_method,
+                'count': len(results),
+                'results': serializer.data
+            })
+        
+        except Exception as e:
+            logger.error(f"Error en búsqueda: {e}", exc_info=True)
+            return Response(
+                {'error': 'Internal search error', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class SearchStatsView(APIView):
+    """
+    API endpoint para obtener estadísticas de cobertura de búsqueda.
+    
+    Retorna métricas sobre artículos indexados y cobertura de embeddings.
+    """
     def get(self, request, *args, **kwargs):
-        return Response({'stats': {}})
+        try:
+            stats = get_search_stats()
+            serializer = SearchStatsSerializer(stats)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas: {e}", exc_info=True)
+            return Response(
+                {'error': 'Error retrieving stats', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

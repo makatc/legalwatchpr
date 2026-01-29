@@ -25,6 +25,8 @@ urlpatterns = [
     path('comparador/', views.comparador, name='comparador_home'),
     path('comparador/<int:bill_id>/', views.comparador, name='comparador'),
     path('resumir/<int:article_id>/', views.resumir_noticia, name='resumir_noticia'),
+    # Listado de leyes/proyectos
+    path('medidas/', views.medidas, name='medidas'),
     
     # Utilidades (Calendario, Configuración, Borrado)
     path('calendario/', views.calendario, name='calendario'),

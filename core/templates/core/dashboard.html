@@ -51,89 +51,50 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <div class="space-y-8">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 class="font-bold text-gray-700"><i class="fas fa-satellite-dish mr-2 text-purple-500"></i> Rastreador SUTRA (En Vivo)</h3>
-                    <a href="{% url 'configuracion' %}" class="text-xs text-blue-600 hover:underline">Configurar</a>
-                </div>
-                <div class="p-0">
-                    {% if monitored_measures %}
-                    <table class="w-full text-left border-collapse">
-                        <tbody class="divide-y divide-gray-100">
-                            {% for item in monitored_measures %}
-                            <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="p-4 text-sm font-bold text-gray-700">{{ item.sutra_id }}</td>
-                                <td class="p-4 text-sm">
-                                    {% if item.is_online %}
-                                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold">🟢 ONLINE</span>
-                                        <div class="text-xs text-gray-400 mt-1">Conexión confirmada</div>
-                                    {% else %}
-                                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-bold">🔴 OFFLINE</span>
-                                        <div class="text-xs text-gray-400 mt-1">{{ item.status_msg }}</div>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div class="p-8 text-center text-gray-400">
-                        <p>No estás monitoreando ningún proyecto.</p>
-                        <a href="{% url 'configuracion' %}" class="text-blue-500 text-sm mt-2 inline-block">Agregar Medida</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="p-4 border-b border-gray-100 bg-gray-50">
-                    <h3 class="font-bold text-gray-700">Agenda Legislativa</h3>
-                </div>
-                <div class="p-4 space-y-4">
-                    {% for event in recent_events %}
-                    <div class="flex gap-4 items-start">
-                        <div class="bg-blue-50 text-blue-800 rounded-lg p-2 text-center min-w-[60px]">
-                            <span class="block text-xs font-bold uppercase">{{ event.date|date:"M" }}</span>
-                            <span class="block text-xl font-bold">{{ event.date|date:"d" }}</span>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-gray-800 text-sm">{{ event.title }}</h4>
-                            <p class="text-xs text-gray-500">{{ event.location }}</p>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p class="text-gray-400 text-sm text-center">No hay eventos próximos.</p>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
+        <!-- Últimas Noticias -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="p-4 border-b border-gray-100 bg-gray-50">
-                <h3 class="font-bold text-gray-700">Proyectos Analizados</h3>
+                <h3 class="font-bold text-gray-700"><i class="fas fa-newspaper mr-2 text-indigo-500"></i> Últimas Noticias</h3>
             </div>
             <div class="divide-y divide-gray-100">
-                {% for bill in recent_bills %}
+                {% for article in latest_news %}
                 <div class="p-4 hover:bg-gray-50 transition-colors">
                     <div class="flex justify-between mb-1">
-                        <span class="font-bold text-blue-600 text-sm">{{ bill.number }}</span>
-                        <span class="text-xs text-gray-400">{{ bill.last_updated|date:"d M Y" }}</span>
+                        <span class="font-bold text-indigo-600 text-sm">{{ article.title }}</span>
+                        <span class="text-xs text-gray-400">{{ article.published_at|date:"d M Y" }}</span>
                     </div>
-                    <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ bill.title }}</p>
-                    <a href="{% url 'comparador' bill.id %}" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">
-                        Ver Comparativa
-                    </a>
+                    <p class="text-gray-600 text-sm mb-2 line-clamp-2">{{ article.snippet|default:"Sin resumen" }}</p>
+                    <span class="text-xs text-gray-500">Fuente: {{ article.source.name }}</span>
                 </div>
                 {% empty %}
                 <div class="p-8 text-center text-gray-400">
-                    <p>No hay proyectos cargados.</p>
+                    <p>No hay noticias recientes.</p>
                 </div>
                 {% endfor %}
             </div>
         </div>
 
+        <!-- Últimas Leyes/Proyectos -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="p-4 border-b border-gray-100 bg-gray-50">
+                <h3 class="font-bold text-gray-700"><i class="fas fa-balance-scale mr-2 text-green-500"></i> Rastreo Legislativo</h3>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for bill in latest_bills %}
+                <div class="p-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex justify-between mb-1">
+                        <span class="font-bold text-green-600 text-sm">{{ bill.number }}</span>
+                        <span class="text-xs text-gray-400">{{ bill.last_updated|date:"d M Y" }}</span>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-2 line-clamp-2">{{ bill.title }}</p>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-gray-400">
+                    <p>No hay leyes recientes.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 
     

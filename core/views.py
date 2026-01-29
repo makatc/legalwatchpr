@@ -52,65 +52,65 @@ AVAILABLE_COMMISSIONS = [
     "Sistemas de Retiro", "Transportación e Infraestructura", "Turismo", "Vivienda y Desarrollo Urbano"
 ]
 
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 @login_required
 def dashboard(request):
-    """Vista principal: Carga medidas, keywords y comisiones para SUTRA"""
-    monitored_data = []
-    measures = MonitoredMeasure.objects.filter(is_active=True)
-    for m in measures:
-        is_online, status_msg = check_sutra_status(m.sutra_id)
-        monitored_data.append({
-            'id': m.id,
-            'sutra_id': m.sutra_id,
-            'is_online': is_online,
-            'status_msg': status_msg,
-            'added_at': m.added_at
-        })
+    """Vista principal: muestra últimas noticias y leyes reales."""
+    # Últimas 5 noticias
+    latest_news = Article.objects.order_by('-published_at')[:5]
+    # Últimas 5 leyes (por last_updated si existe, si no por id)
+    if hasattr(Bill, 'last_updated'):
+        latest_bills = Bill.objects.order_by('-last_updated')[:5]
+    else:
+        latest_bills = Bill.objects.order_by('-id')[:5]
 
     context = {
-        'total_bills': Bill.objects.count(),
-        'recent_bills': Bill.objects.all().order_by('-last_updated')[:5],
-        'recent_events': Event.objects.all().order_by('-date')[:5],
-        'monitored_measures': monitored_data,
-        'keywords': Keyword.objects.all().order_by('term'),
-        'comms': MonitoredCommission.objects.filter(is_active=True).order_by('name'),
-        'available_commissions': sorted(AVAILABLE_COMMISSIONS),
+        'latest_news': latest_news,
+        'latest_bills': latest_bills,
     }
     return render(request, 'core/dashboard.html', context)
 
 @login_required
 def noticias(request):
     query = request.GET.get('q', '')
-    search_method = request.GET.get('method', 'hybrid')
-    
+    articles = Article.objects.all().order_by('-published_at')
     if query:
-        try:
-            if search_method == 'semantic':
-                search_results = search_semantic_only(query, limit=100)
-            elif search_method == 'keyword':
-                search_results = search_keyword_only(query, limit=100)
-            else:
-                search_results = search_documents(query, limit=100)
-            
-            # Si search_results son diccionarios (de la API de búsqueda), extraemos IDs
-            if search_results and isinstance(search_results[0], dict):
-                article_ids = [r['id'] for r in search_results]
-                articles = Article.objects.filter(id__in=article_ids)
-            else:
-                articles = search_results # Asumimos queryset si no
-        except Exception as e:
-            logger.error(f"Error en búsqueda: {e}")
-            articles = Article.objects.filter(title__icontains=query)[:100]
-    else:
-        articles = Article.objects.all().order_by('-published_at')[:100]
-    
+        articles = articles.filter(title__icontains=query)
+    paginator = Paginator(articles, 20)
+    page = request.GET.get('page')
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
     context = {
-        'articles': articles,
+        'page_obj': page_obj,
         'query': query,
-        'presets': NewsPreset.objects.all(),
-        'sources': NewsSource.objects.all()
     }
     return render(request, 'core/noticias.html', context)
+
+# Nueva vista: lista de leyes/medidas
+@login_required
+def medidas(request):
+    query = request.GET.get('q', '')
+    bills = Bill.objects.all().order_by('-last_updated' if hasattr(Bill, 'last_updated') else '-id')
+    if query:
+        bills = bills.filter(models.Q(title__icontains=query) | models.Q(number__icontains=query))
+    paginator = Paginator(bills, 20)
+    page = request.GET.get('page')
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+    }
+    return render(request, 'core/medidas.html', context)
 
 @login_required
 def dashboard_configuracion(request):

@@ -97,7 +97,7 @@ with connection.cursor() as cursor:
         total, with_sv = cursor.fetchone()
         print(f"  Total de artículos:              {total:>6}")
         print(f"  Con search_vector generado:      {with_sv:>6} ({with_sv*100//max(total,1):>3}%)")
-        print(f"  Campo embedding:                 NO CREADO (pgvector no disponible)")
+        print("  Campo embedding:                 NO CREADO (pgvector no disponible)")
     
     # 4. Verificar extensiones necesarias
     print("\n" + "="*70)

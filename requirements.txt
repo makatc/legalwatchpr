@@ -2,7 +2,6 @@ Django>=4.2
 psycopg2-binary
 pgvector
 google-generativeai
-groq
 beautifulsoup4
 requests
 python-dotenv
@@ -15,5 +14,4 @@ pypdf
 python-docx
 feedparser
 django-apscheduler
-
 icalendar

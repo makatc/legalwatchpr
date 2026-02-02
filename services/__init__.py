@@ -6,19 +6,20 @@ accessed. This can reduce import-time overhead but does not by itself
 prevent circular imports if submodules import from ``services`` instead
 of importing directly from their sibling modules.
 """
+
 from typing import Any, List
 
 _NAME_TO_MODULE = {
-    'EmbeddingGenerator': 'embedding_service',
-    'RRF_K': 'hybrid_search',
-    'get_search_stats': 'hybrid_search',
-    'search_documents': 'hybrid_search',
-    'search_keyword_only': 'hybrid_search',
-    'search_semantic_only': 'hybrid_search',
-    'LatencyTracker': 'metrics',
-    'SearchMetrics': 'metrics',
-    'evaluate_search_quality': 'metrics',
-    'format_evaluation_report': 'metrics',
+    "EmbeddingGenerator": "embedding_service",
+    "RRF_K": "hybrid_search",
+    "get_search_stats": "hybrid_search",
+    "search_documents": "hybrid_search",
+    "search_keyword_only": "hybrid_search",
+    "search_semantic_only": "hybrid_search",
+    "LatencyTracker": "metrics",
+    "SearchMetrics": "metrics",
+    "evaluate_search_quality": "metrics",
+    "format_evaluation_report": "metrics",
 }
 
 __all__ = list(_NAME_TO_MODULE.keys())

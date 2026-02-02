@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0005_event_remove_billevent_bill_delete_systemsettings_and_more"),
     ]

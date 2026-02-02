@@ -5,15 +5,19 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0027_alter_systemsettings_options_and_more'),
+        ("core", "0027_alter_systemsettings_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='article',
-            name='embedding',
-            field=pgvector.django.vector.VectorField(blank=True, dimensions=384, help_text='Vector de embeddings semánticos (384 dimensiones)', null=True),
+            model_name="article",
+            name="embedding",
+            field=pgvector.django.vector.VectorField(
+                blank=True,
+                dimensions=384,
+                help_text="Vector de embeddings semánticos (384 dimensiones)",
+                null=True,
+            ),
         ),
     ]

@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0017_alter_newspreset_threshold'),
+        ("core", "0017_alter_newspreset_threshold"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='article',
-            name='link',
+            model_name="article",
+            name="link",
             field=models.URLField(max_length=500, unique=True),
         ),
     ]

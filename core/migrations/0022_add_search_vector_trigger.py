@@ -4,12 +4,11 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0021_article_embedding'),
+        ("core", "0021_article_embedding"),
     ]
 
-    operations = [        # Crear función de trigger para actualizar search_vector automáticamente
+    operations = [  # Crear función de trigger para actualizar search_vector automáticamente
         migrations.RunSQL(
             sql="""
             CREATE OR REPLACE FUNCTION update_article_search_vector()
@@ -29,9 +28,8 @@ class Migration(migrations.Migration):
             END;
             $$ LANGUAGE plpgsql;
             """,
-            reverse_sql="DROP FUNCTION IF EXISTS update_article_search_vector() CASCADE;"
+            reverse_sql="DROP FUNCTION IF EXISTS update_article_search_vector() CASCADE;",
         ),
-        
         # Crear trigger que ejecuta la función BEFORE INSERT OR UPDATE
         migrations.RunSQL(
             sql="""
@@ -41,9 +39,8 @@ class Migration(migrations.Migration):
             FOR EACH ROW
             EXECUTE FUNCTION update_article_search_vector();
             """,
-            reverse_sql="DROP TRIGGER IF EXISTS trigger_update_article_search_vector ON core_article;"
+            reverse_sql="DROP TRIGGER IF EXISTS trigger_update_article_search_vector ON core_article;",
         ),
-        
         # Actualizar registros existentes (si los hay)
         migrations.RunSQL(
             sql="""
@@ -54,5 +51,6 @@ class Migration(migrations.Migration):
                 setweight(to_tsvector('spanish', unaccent(coalesce(ai_summary, ''))), 'C')
             WHERE search_vector IS NULL OR search_vector = '';
             """,
-            reverse_sql=migrations.RunSQL.noop
-        ),    ]
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+    ]

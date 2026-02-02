@@ -8,37 +8,87 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0013_systemsettings'),
+        ("core", "0013_systemsettings"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='monitoredcommission',
-            name='is_active',
+            model_name="monitoredcommission",
+            name="is_active",
             field=models.BooleanField(default=True),
         ),
         migrations.AlterField(
-            model_name='systemsettings',
-            name='high_freq_end',
-            field=models.TimeField(default=datetime.time(17, 0), help_text='Fin del horario intensivo'),
+            model_name="systemsettings",
+            name="high_freq_end",
+            field=models.TimeField(
+                default=datetime.time(17, 0), help_text="Fin del horario intensivo"
+            ),
         ),
         migrations.AlterField(
-            model_name='systemsettings',
-            name='high_freq_start',
-            field=models.TimeField(default=datetime.time(8, 0), help_text='Inicio del horario intensivo'),
+            model_name="systemsettings",
+            name="high_freq_start",
+            field=models.TimeField(
+                default=datetime.time(8, 0), help_text="Inicio del horario intensivo"
+            ),
         ),
         migrations.CreateModel(
-            name='UserProfile',
+            name="UserProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('webhook_measures', models.URLField(blank=True, max_length=500, null=True, verbose_name='Webhook Medidas')),
-                ('webhook_commissions', models.URLField(blank=True, max_length=500, null=True, verbose_name='Webhook Comisiones')),
-                ('webhook_keywords', models.URLField(blank=True, max_length=500, null=True, verbose_name='Webhook Keywords')),
-                ('webhook_general', models.URLField(blank=True, max_length=500, null=True, verbose_name='Webhook General')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "webhook_measures",
+                    models.URLField(
+                        blank=True,
+                        max_length=500,
+                        null=True,
+                        verbose_name="Webhook Medidas",
+                    ),
+                ),
+                (
+                    "webhook_commissions",
+                    models.URLField(
+                        blank=True,
+                        max_length=500,
+                        null=True,
+                        verbose_name="Webhook Comisiones",
+                    ),
+                ),
+                (
+                    "webhook_keywords",
+                    models.URLField(
+                        blank=True,
+                        max_length=500,
+                        null=True,
+                        verbose_name="Webhook Keywords",
+                    ),
+                ),
+                (
+                    "webhook_general",
+                    models.URLField(
+                        blank=True,
+                        max_length=500,
+                        null=True,
+                        verbose_name="Webhook General",
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="profile",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

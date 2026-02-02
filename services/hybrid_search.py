@@ -32,23 +32,20 @@ RRF_K = 60
 
 
 def search_documents(
-    query: str,
-    limit: int = 20,
-    k: int = RRF_K,
-    top_k_candidates: int = 100
+    query: str, limit: int = 20, k: int = RRF_K, top_k_candidates: int = 100
 ) -> List[Dict[str, Any]]:
     """
     Búsqueda híbrida de documentos usando RRF (Reciprocal Rank Fusion).
-    
+
     Combina búsqueda semántica (embeddings) y búsqueda léxica (full-text)
     para obtener resultados más relevantes y robustos.
-    
+
     Args:
         query: Texto de búsqueda del usuario
         limit: Número máximo de resultados a retornar (default: 20)
         k: Constante RRF para suavizar rankings (default: 60)
         top_k_candidates: Número de candidatos a considerar de cada método (default: 100)
-        
+
     Returns:
         Lista de diccionarios con información de artículos ordenados por relevancia:
         [
@@ -64,11 +61,11 @@ def search_documents(
             },
             ...
         ]
-        
+
     Raises:
         ValueError: Si la query está vacía
         RuntimeError: Si ocurre un error durante la búsqueda
-        
+
     Examples:
         >>> results = search_documents("ley de transparencia")
         >>> len(results) <= 20
@@ -79,18 +76,18 @@ def search_documents(
     # Validación de entrada
     if not query or not isinstance(query, str):
         raise ValueError("La query debe ser una cadena no vacía")
-    
+
     query = query.strip()
     if not query:
         raise ValueError("La query no puede estar vacía")
-    
+
     logger.info(f"Búsqueda híbrida: '{query}' (limit={limit}, k={k})")
-    
+
     try:
         # Generar embedding para la query
         generator = EmbeddingGenerator()
         query_embedding = generator.encode(query)
-        
+
         # Construir la consulta SQL con CTEs
         sql = """
         WITH semantic AS (
@@ -154,86 +151,93 @@ def search_documents(
         -- Limitar resultados finales
         LIMIT %s;
         """
-        
+
         # Parámetros de la consulta
         # Nota: query_embedding se pasa dos veces para el CTE semantic
         params = [
             query_embedding,  # semantic CTE: embedding <=> %s
             query_embedding,  # semantic CTE: ORDER BY
             top_k_candidates,  # semantic CTE: LIMIT
-            query,             # keyword CTE: websearch_to_tsquery
-            query,             # keyword CTE: WHERE clause
+            query,  # keyword CTE: websearch_to_tsquery
+            query,  # keyword CTE: WHERE clause
             top_k_candidates,  # keyword CTE: LIMIT
-            k,                 # RRF constant (semantic)
-            k,                 # RRF constant (keyword)
-            limit              # Final LIMIT
+            k,  # RRF constant (semantic)
+            k,  # RRF constant (keyword)
+            limit,  # Final LIMIT
         ]
-        
+
         # Ejecutar consulta
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-        
+
         # Convertir resultados a lista de diccionarios
         results = []
         for row in rows:
             result = dict(zip(columns, row))
             # Mapear nombres de campos SQL a nombres esperados por el serializer
-            if 'link' in result:
-                result['url'] = result['link']  # link del modelo -> url para compatibilidad
-            if 'published_at' in result:
-                result['published_date'] = result['published_at']  # published_at -> published_date
+            if "link" in result:
+                result["url"] = result[
+                    "link"
+                ]  # link del modelo -> url para compatibilidad
+            if "published_at" in result:
+                result["published_date"] = result[
+                    "published_at"
+                ]  # published_at -> published_date
             results.append(result)
-        
+
         logger.info(f"✅ Búsqueda completada: {len(results)} resultados encontrados")
-        
+
         # Log de estadísticas
         if results:
-            semantic_only = sum(1 for r in results if r['semantic_rank'] and not r['keyword_rank'])
-            keyword_only = sum(1 for r in results if r['keyword_rank'] and not r['semantic_rank'])
-            both = sum(1 for r in results if r['semantic_rank'] and r['keyword_rank'])
-            
-            logger.debug(f"Distribución: {semantic_only} solo semántica, "
-                        f"{keyword_only} solo léxica, {both} en ambas")
-        
+            semantic_only = sum(
+                1 for r in results if r["semantic_rank"] and not r["keyword_rank"]
+            )
+            keyword_only = sum(
+                1 for r in results if r["keyword_rank"] and not r["semantic_rank"]
+            )
+            both = sum(1 for r in results if r["semantic_rank"] and r["keyword_rank"])
+
+            logger.debug(
+                f"Distribución: {semantic_only} solo semántica, "
+                f"{keyword_only} solo léxica, {both} en ambas"
+            )
+
         return results
-        
+
     except Exception as e:
         logger.error(f"❌ Error en búsqueda híbrida: {e}", exc_info=True)
         raise RuntimeError(f"Error durante la búsqueda: {e}") from e
 
 
-def search_semantic_only(
-    query: str,
-    limit: int = 20
-) -> List[Dict[str, Any]]:
+def search_semantic_only(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
     Búsqueda semántica pura (solo embeddings, sin full-text).
-    
+
     Útil para comparar rendimiento o cuando se desea solo similitud semántica.
-    
+
     Args:
         query: Texto de búsqueda
         limit: Número de resultados
-        
+
     Returns:
         Lista de artículos ordenados por similitud semántica
     """
     if not query or not isinstance(query, str):
         raise ValueError("La query debe ser una cadena no vacía")
-    
+
     query = query.strip()
     if not query:
         raise ValueError("La query no puede estar vacía")
-    
+
     logger.info(f"Búsqueda semántica pura: '{query}' (limit={limit})")
-    
+
     try:
         # Generar embedding
         generator = EmbeddingGenerator()
         query_embedding = generator.encode(query)
-        
+
         # Consulta semántica simple
         sql = """
         SELECT 
@@ -252,50 +256,47 @@ def search_semantic_only(
         ORDER BY a.embedding <=> %s::vector
         LIMIT %s;
         """
-        
+
         params = [query_embedding, query_embedding, query_embedding, limit]
-        
+
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-        
+
         results = [dict(zip(columns, row)) for row in rows]
-        
+
         logger.info(f"✅ Búsqueda semántica: {len(results)} resultados")
-        
+
         return results
-        
+
     except Exception as e:
         logger.error(f"❌ Error en búsqueda semántica: {e}", exc_info=True)
         raise RuntimeError(f"Error durante búsqueda semántica: {e}") from e
 
 
-def search_keyword_only(
-    query: str,
-    limit: int = 20
-) -> List[Dict[str, Any]]:
+def search_keyword_only(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
     Búsqueda léxica pura (solo full-text, sin embeddings).
-    
+
     Útil para comparar rendimiento o cuando se desea solo coincidencia textual.
-    
+
     Args:
         query: Texto de búsqueda
         limit: Número de resultados
-        
+
     Returns:
         Lista de artículos ordenados por relevancia léxica
     """
     if not query or not isinstance(query, str):
         raise ValueError("La query debe ser una cadena no vacía")
-    
+
     query = query.strip()
     if not query:
         raise ValueError("La query no puede estar vacía")
-    
+
     logger.info(f"Búsqueda léxica pura: '{query}' (limit={limit})")
-    
+
     try:
         # Consulta full-text simple
         sql = """
@@ -314,20 +315,20 @@ def search_keyword_only(
         ORDER BY ts_rank_cd(a.search_vector, websearch_to_tsquery('spanish', %s)) DESC
         LIMIT %s;
         """
-        
+
         params = [query, query, query, limit]
-        
+
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-        
+
         results = [dict(zip(columns, row)) for row in rows]
-        
+
         logger.info(f"✅ Búsqueda léxica: {len(results)} resultados")
-        
+
         return results
-        
+
     except Exception as e:
         logger.error(f"❌ Error en búsqueda léxica: {e}", exc_info=True)
         raise RuntimeError(f"Error durante búsqueda léxica: {e}") from e
@@ -336,7 +337,7 @@ def search_keyword_only(
 def get_search_stats() -> Dict[str, Any]:
     """
     Obtiene estadísticas sobre el estado de búsqueda en la base de datos.
-    
+
     Returns:
         Diccionario con estadísticas:
         {
@@ -356,25 +357,27 @@ def get_search_stats() -> Dict[str, Any]:
         COUNT(*) FILTER (WHERE embedding IS NOT NULL AND search_vector IS NOT NULL) AS searchable
     FROM core_article;
     """
-    
+
     try:
         with connection.cursor() as cursor:
             cursor.execute(sql)
             row = cursor.fetchone()
-        
+
         total, with_embedding, with_search_vector, searchable = row
-        
+
         stats = {
-            'total_articles': total,
-            'articles_with_embedding': with_embedding,
-            'articles_with_search_vector': with_search_vector,
-            'articles_searchable': searchable,
-            'embedding_coverage': (with_embedding / total * 100) if total > 0 else 0.0,
-            'search_vector_coverage': (with_search_vector / total * 100) if total > 0 else 0.0,
+            "total_articles": total,
+            "articles_with_embedding": with_embedding,
+            "articles_with_search_vector": with_search_vector,
+            "articles_searchable": searchable,
+            "embedding_coverage": (with_embedding / total * 100) if total > 0 else 0.0,
+            "search_vector_coverage": (with_search_vector / total * 100)
+            if total > 0
+            else 0.0,
         }
-        
+
         return stats
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas: {e}", exc_info=True)
         raise

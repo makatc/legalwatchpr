@@ -4,71 +4,70 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0011_rename_created_at_monitoredmeasure_added_at_and_more'),
+        ("core", "0011_rename_created_at_monitoredmeasure_added_at_and_more"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='article',
+            name="article",
             options={},
         ),
         migrations.RemoveField(
-            model_name='bill',
-            name='status',
+            model_name="bill",
+            name="status",
         ),
         migrations.RemoveField(
-            model_name='bill',
-            name='sutra_url',
+            model_name="bill",
+            name="sutra_url",
         ),
         migrations.RemoveField(
-            model_name='keyword',
-            name='created_at',
+            model_name="keyword",
+            name="created_at",
         ),
         migrations.AlterField(
-            model_name='article',
-            name='snippet',
+            model_name="article",
+            name="snippet",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='billversion',
-            name='created_at',
+            model_name="billversion",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True),
         ),
         migrations.AlterField(
-            model_name='billversion',
-            name='full_text',
+            model_name="billversion",
+            name="full_text",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='billversion',
-            name='pdf_file',
-            field=models.FileField(upload_to='bills_pdfs/'),
+            model_name="billversion",
+            name="pdf_file",
+            field=models.FileField(upload_to="bills_pdfs/"),
         ),
         migrations.AlterField(
-            model_name='keyword',
-            name='term',
+            model_name="keyword",
+            name="term",
             field=models.CharField(max_length=100),
         ),
         migrations.AlterField(
-            model_name='monitoredcommission',
-            name='name',
+            model_name="monitoredcommission",
+            name="name",
             field=models.CharField(max_length=200),
         ),
         migrations.AlterField(
-            model_name='monitoredmeasure',
-            name='sutra_id',
+            model_name="monitoredmeasure",
+            name="sutra_id",
             field=models.CharField(max_length=50),
         ),
         migrations.AlterField(
-            model_name='newspreset',
-            name='keywords',
-            field=models.TextField(help_text='Separadas por coma'),
+            model_name="newspreset",
+            name="keywords",
+            field=models.TextField(help_text="Separadas por coma"),
         ),
         migrations.AlterField(
-            model_name='newssource',
-            name='icon_class',
-            field=models.CharField(default='fas fa-newspaper', max_length=50),
+            model_name="newssource",
+            name="icon_class",
+            field=models.CharField(default="fas fa-newspaper", max_length=50),
         ),
     ]

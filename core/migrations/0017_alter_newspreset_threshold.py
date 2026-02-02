@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0016_article_relevance_score_newspreset_fields_to_analyze_and_more'),
+        ("core", "0016_article_relevance_score_newspreset_fields_to_analyze_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='newspreset',
-            name='threshold',
-            field=models.IntegerField(default=15, help_text='Score mínimo de relevancia (0-100) para incluir artículo. Recomendado: 15-20 para alta sensibilidad'),
+            model_name="newspreset",
+            name="threshold",
+            field=models.IntegerField(
+                default=15,
+                help_text="Score mínimo de relevancia (0-100) para incluir artículo. Recomendado: 15-20 para alta sensibilidad",
+            ),
         ),
     ]

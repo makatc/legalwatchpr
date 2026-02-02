@@ -14,13 +14,14 @@ logger = logging.getLogger(__name__)
 # Instancia global del scheduler
 scheduler = None
 
+
 def sync_news_task():
     """
     Tarea que sincroniza noticias RSS automáticamente.
     Se ejecuta cada 30 minutos.
     """
     from core.utils import sync_all_rss_sources
-    
+
     logger.info("🤖 Iniciando sincronización automática de noticias...")
     try:
         new_count = sync_all_rss_sources(max_entries=15, clean_first=True)
@@ -28,24 +29,25 @@ def sync_news_task():
     except Exception as e:
         logger.error(f"❌ Error en sincronización automática: {e}")
 
+
 def start_scheduler():
     """
     Inicia el scheduler de tareas automáticas.
     Se llama desde apps.py cuando Django arranca.
     """
     global scheduler
-    
+
     # Solo ejecutar en runserver o gunicorn
-    if not ('runserver' in sys.argv or 'gunicorn' in sys.argv[0]):
+    if not ("runserver" in sys.argv or "gunicorn" in sys.argv[0]):
         return
-    
+
     # Evitar inicializar dos veces
     if scheduler is not None and scheduler.running:
         return
-    
+
     # Usar scheduler en memoria (sin DjangoJobStore para evitar warning)
     scheduler = BackgroundScheduler()
-    
+
     # Tarea: Sincronizar noticias cada 30 minutos
     scheduler.add_job(
         sync_news_task,
@@ -55,7 +57,7 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,  # Solo una instancia a la vez
     )
-    
+
     try:
         print("⏰ Scheduler iniciado - Sincronización automática cada 30 minutos")
         logger.info("⏰ Scheduler iniciado - Sincronización automática cada 30 minutos")

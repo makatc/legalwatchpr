@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0002_bill_commission_alter_systemsettings_active_days"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

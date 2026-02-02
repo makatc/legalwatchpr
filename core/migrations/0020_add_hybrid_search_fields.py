@@ -19,42 +19,43 @@ def add_embedding_field_if_available(apps, schema_editor):
     """
     if not PGVECTOR_AVAILABLE:
         print("⚠️  pgvector no disponible - campo embedding NO creado")
-        print("   Instala pgvector y ejecuta esta migración nuevamente para habilitar búsqueda semántica")
+        print(
+            "   Instala pgvector y ejecuta esta migración nuevamente para habilitar búsqueda semántica"
+        )
         return
-    
+
     # Verificar que la extensión vector existe en la base de datos
     with schema_editor.connection.cursor() as cursor:
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')")
+        cursor.execute(
+            "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')"
+        )
         vector_installed = cursor.fetchone()[0]
-        
+
         if not vector_installed:
             print("⚠️  Extensión pgvector NO instalada en PostgreSQL")
             print("   Ejecuta: CREATE EXTENSION vector;")
             print("   O sigue las instrucciones en INSTALL_PGVECTOR.md")
             return
-    
+
     # Si llegamos aquí, pgvector está disponible - crear campo
-    Article = apps.get_model('core', 'Article')
-    
-    schema_editor.add_field(
-        Article,
-        Article._meta.get_field('embedding')
-    )
+    Article = apps.get_model("core", "Article")
+
+    schema_editor.add_field(Article, Article._meta.get_field("embedding"))
     print("✅ Campo embedding creado correctamente")
 
 
 class Migration(migrations.Migration):
     """
     Migración SEGURA para añadir campos de búsqueda híbrida.
-    
+
     CAMPOS AÑADIDOS:
     - search_vector: Para búsqueda full-text con PostgreSQL (tsvector) - SIEMPRE
     - embedding: Para búsqueda semántica con pgvector (384 dimensiones) - SOLO SI PGVECTOR DISPONIBLE
-    
+
     ÍNDICES:
     - GinIndex en search_vector: Se crea en esta migración con CONCURRENTLY
     - HnswIndex en embedding: Se crea MANUALMENTE después (ver create_hnsw_index.sql)
-    
+
     IMPORTANTE: Esta migración NO bloquea la base de datos porque:
     1. Los campos permiten NULL (no requiere reescribir tabla)
     2. El índice GIN se crea CONCURRENTLY (no bloquea)
@@ -62,38 +63,35 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ('core', '0019_enable_pgvector_extensions'),
+        ("core", "0019_enable_pgvector_extensions"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='article',
-            options={'ordering': ['-published_at']},
+            name="article",
+            options={"ordering": ["-published_at"]},
         ),
-        
         # PASO 1: Añadir campo search_vector (SIEMPRE - no requiere pgvector)
         migrations.AddField(
-            model_name='article',
-            name='search_vector',
+            model_name="article",
+            name="search_vector",
             field=django.contrib.postgres.search.SearchVectorField(
-                blank=True, 
-                help_text='Vector de búsqueda full-text precomputado (PostgreSQL tsvector)', 
-                null=True
+                blank=True,
+                help_text="Vector de búsqueda full-text precomputado (PostgreSQL tsvector)",
+                null=True,
             ),
         ),
-        
         # PASO 2: Crear índice GIN (normal en desarrollo, CONCURRENTLY en producción)
         # NOTA: En desarrollo usa migrations.AddIndex (bloquea pero es rápido)
         # NOTA: En producción ejecuta manualmente: CREATE INDEX CONCURRENTLY ...
         migrations.AddIndex(
-            model_name='article',
+            model_name="article",
             index=django.contrib.postgres.indexes.GinIndex(
-                fields=['search_vector'],
-                name='idx_article_search_vector'
+                fields=["search_vector"], name="idx_article_search_vector"
             ),
         ),
     ]
-    
+
     # INSTRUCCIONES PARA PRODUCCIÓN:
     # Para evitar bloqueo de tabla en producción, ejecutar manualmente:
     # psql -d legalwatchpr -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_article_search_vector ON core_article USING GIN (search_vector);"

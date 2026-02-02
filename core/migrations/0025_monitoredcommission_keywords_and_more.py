@@ -4,45 +4,74 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0024_remove_article_embedding'),
+        ("core", "0024_remove_article_embedding"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='monitoredcommission',
-            name='keywords',
-            field=models.TextField(blank=True, default='', help_text='Palabras clave para filtrar medidas de esta comisión (separadas por coma)'),
+            model_name="monitoredcommission",
+            name="keywords",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Palabras clave para filtrar medidas de esta comisión (separadas por coma)",
+            ),
         ),
         migrations.AddField(
-            model_name='monitoredcommission',
-            name='search_method',
-            field=models.CharField(choices=[('hybrid', 'Búsqueda Híbrida (RRF)'), ('semantic', 'Búsqueda Semántica (IA)'), ('keyword', 'Búsqueda por Palabras Clave')], default='hybrid', help_text='Método de búsqueda para esta comisión', max_length=20),
+            model_name="monitoredcommission",
+            name="search_method",
+            field=models.CharField(
+                choices=[
+                    ("hybrid", "Búsqueda Híbrida (RRF)"),
+                    ("semantic", "Búsqueda Semántica (IA)"),
+                    ("keyword", "Búsqueda por Palabras Clave"),
+                ],
+                default="hybrid",
+                help_text="Método de búsqueda para esta comisión",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='monitoredcommission',
-            name='threshold',
-            field=models.IntegerField(default=15, help_text='Score mínimo de relevancia (0-100)'),
+            model_name="monitoredcommission",
+            name="threshold",
+            field=models.IntegerField(
+                default=15, help_text="Score mínimo de relevancia (0-100)"
+            ),
         ),
         migrations.AddField(
-            model_name='monitoredmeasure',
-            name='is_active',
+            model_name="monitoredmeasure",
+            name="is_active",
             field=models.BooleanField(default=True),
         ),
         migrations.AddField(
-            model_name='monitoredmeasure',
-            name='keywords',
-            field=models.TextField(blank=True, default='', help_text='Palabras clave para filtrar medidas relevantes (separadas por coma)'),
+            model_name="monitoredmeasure",
+            name="keywords",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Palabras clave para filtrar medidas relevantes (separadas por coma)",
+            ),
         ),
         migrations.AddField(
-            model_name='monitoredmeasure',
-            name='search_method',
-            field=models.CharField(choices=[('hybrid', 'Búsqueda Híbrida (RRF)'), ('semantic', 'Búsqueda Semántica (IA)'), ('keyword', 'Búsqueda por Palabras Clave')], default='hybrid', help_text='Método de búsqueda para esta medida', max_length=20),
+            model_name="monitoredmeasure",
+            name="search_method",
+            field=models.CharField(
+                choices=[
+                    ("hybrid", "Búsqueda Híbrida (RRF)"),
+                    ("semantic", "Búsqueda Semántica (IA)"),
+                    ("keyword", "Búsqueda por Palabras Clave"),
+                ],
+                default="hybrid",
+                help_text="Método de búsqueda para esta medida",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='monitoredmeasure',
-            name='threshold',
-            field=models.IntegerField(default=15, help_text='Score mínimo de relevancia (0-100)'),
+            model_name="monitoredmeasure",
+            name="threshold",
+            field=models.IntegerField(
+                default=15, help_text="Score mínimo de relevancia (0-100)"
+            ),
         ),
     ]

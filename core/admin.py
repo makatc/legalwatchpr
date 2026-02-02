@@ -1,8 +1,16 @@
 from django.contrib import admin
 
-from .models import (Article, Bill, BillVersion, Event, Keyword,
-                     MonitoredCommission, MonitoredMeasure, NewsPreset,
-                     NewsSource)
+from .models import (
+    Article,
+    Bill,
+    BillVersion,
+    Event,
+    Keyword,
+    MonitoredCommission,
+    MonitoredMeasure,
+    NewsPreset,
+    NewsSource,
+)
 
 # Esto hace que aparezcan las tablas en el panel
 admin.site.register(Bill)

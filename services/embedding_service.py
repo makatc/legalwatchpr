@@ -13,7 +13,7 @@ Características:
 
 Uso:
     from services import EmbeddingGenerator
-    
+
     generator = EmbeddingGenerator()
     embedding = generator.encode("Tu texto aquí")
     # embedding es una lista de 384 floats
@@ -21,12 +21,12 @@ Uso:
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import math
 import os
 import threading
-import hashlib
-import math
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
@@ -38,10 +38,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingGenerator:
     """
     Generador de embeddings semánticos con patrón Singleton.
-    
+
     Usa el modelo paraphrase-multilingual-MiniLM-L12-v2 que genera vectores de 384 dimensiones
     y soporta múltiples idiomas incluyendo español.
-    
+
     Atributos:
         MODEL_NAME: Nombre del modelo de Hugging Face
         MAX_TOKENS: Límite aproximado de tokens (512 para este modelo)
@@ -50,19 +50,19 @@ class EmbeddingGenerator:
         _lock: Lock para thread-safety
         _model: Modelo de SentenceTransformers cargado
     """
-    
+
     MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
     MAX_TOKENS = 512  # Límite de tokens del modelo
-    DIMENSION = 384   # Dimensión de los embeddings generados
-    
-    _instance: Optional['EmbeddingGenerator'] = None
+    DIMENSION = 384  # Dimensión de los embeddings generados
+
+    _instance: Optional["EmbeddingGenerator"] = None
     _lock = threading.Lock()
-    _model: Optional['SentenceTransformer'] = None
-    
+    _model: Optional["SentenceTransformer"] = None
+
     def __new__(cls):
         """
         Implementación del patrón Singleton thread-safe.
-        
+
         Asegura que solo exista una instancia del generador en toda la aplicación,
         evitando recargar el modelo en cada llamada.
         """
@@ -70,11 +70,11 @@ class EmbeddingGenerator:
             with cls._lock:
                 # Double-checked locking
                 if cls._instance is None:
-                    logger.info(f"Inicializando EmbeddingGenerator (Singleton)")
+                    logger.info("Inicializando EmbeddingGenerator (Singleton)")
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         """
         Inicializa el modelo de embeddings (solo la primera vez).
@@ -87,7 +87,9 @@ class EmbeddingGenerator:
                 # If running in CI or explicit mock mode, skip loading heavy ML libs
                 ci_mock = os.getenv("LW_CI_MOCK_EMBEDDINGS") or os.getenv("CI")
                 if ci_mock:
-                    logger.info("CI/mock mode detected: using deterministic mock embeddings")
+                    logger.info(
+                        "CI/mock mode detected: using deterministic mock embeddings"
+                    )
                     self._model = None
                     self._initialized = True
                     return
@@ -96,73 +98,78 @@ class EmbeddingGenerator:
                     logger.info(f"Cargando modelo: {self.MODEL_NAME}")
                     # Import heavy ML dependency lazily to avoid import-time failures
                     from sentence_transformers import SentenceTransformer
+
                     self._model = SentenceTransformer(self.MODEL_NAME)
                     self._initialized = True
-                    logger.info(f"✅ Modelo cargado exitosamente. Dimensión: {self.DIMENSION}")
+                    logger.info(
+                        f"✅ Modelo cargado exitosamente. Dimensión: {self.DIMENSION}"
+                    )
                 except Exception as e:
                     logger.error(f"❌ Error al cargar el modelo: {e}")
-                    raise RuntimeError(f"No se pudo cargar el modelo de embeddings: {e}") from e
-    
+                    raise RuntimeError(
+                        f"No se pudo cargar el modelo de embeddings: {e}"
+                    ) from e
+
     def _smart_truncate(self, text: str) -> str:
         """
         Truncamiento inteligente: conserva inicio + final del documento.
-        
+
         Estrategia:
         1. Si el texto es corto (< MAX_TOKENS), retornarlo completo
         2. Si es largo, tomar los primeros ~70% de tokens disponibles del inicio
         3. Tomar los últimos ~30% de tokens disponibles del final
         4. Concatenar con " ... " en el medio
-        
+
         Esto captura la introducción (contexto) y la conclusión (decisión/resultado).
-        
+
         Args:
             text: Texto original que puede exceder MAX_TOKENS
-            
+
         Returns:
             Texto truncado inteligentemente
         """
         if not text:
             return ""
-        
+
         # Estimación aproximada: 1 token ≈ 4 caracteres en español
         chars_per_token = 4
         max_chars = self.MAX_TOKENS * chars_per_token
-        
+
         # Si el texto es corto, retornarlo completo
         if len(text) <= max_chars:
             return text
-        
+
         # Calcular cuántos caracteres tomar del inicio y final
         # 70% del inicio, 30% del final
         start_chars = int(max_chars * 0.7)
         end_chars = int(max_chars * 0.3)
-        
+
         # Extraer inicio y final
-        start_text = text[:start_chars].rsplit(' ', 1)[0]  # Cortar en palabra completa
-        end_text = text[-end_chars:].split(' ', 1)[-1]     # Cortar en palabra completa
-        
+        start_text = text[:start_chars].rsplit(" ", 1)[0]  # Cortar en palabra completa
+        end_text = text[-end_chars:].split(" ", 1)[-1]  # Cortar en palabra completa
+
         # Concatenar con separador
         truncated = f"{start_text} ... {end_text}"
-        
+
         logger.debug(f"Texto truncado: {len(text)} → {len(truncated)} caracteres")
-        
+
         return truncated
-    
+
     def encode(self, text: str, normalize: bool = True) -> List[float]:
         """
         Convierte texto en un vector de embeddings.
-        
+
         Args:
             text: Texto a convertir en embedding
             normalize: Si True, normaliza el vector (recomendado para búsqueda por similitud coseno)
-            
+
         Returns:
             Lista de 384 floats representando el embedding del texto
-            
+
         Raises:
             ValueError: Si el texto está vacío o es None
             RuntimeError: Si ocurre un error durante la generación del embedding
-            
+
         Examples:
             >>> generator = EmbeddingGenerator()
             >>> embedding = generator.encode("Ley de transparencia aprobada")
@@ -174,14 +181,14 @@ class EmbeddingGenerator:
         # Validación de entrada
         if not text or not isinstance(text, str):
             raise ValueError("El texto debe ser una cadena no vacía")
-        
+
         # Limpiar y truncar el texto
         text = text.strip()
         if not text:
             raise ValueError("El texto no puede estar vacío después de limpieza")
-        
+
         text = self._smart_truncate(text)
-        
+
         try:
             # Generar embedding
             logger.debug(f"Generando embedding para texto de {len(text)} caracteres")
@@ -189,10 +196,9 @@ class EmbeddingGenerator:
             # If running in mock mode (CI), return a deterministic pseudo-random vector
             if self._model is None:
                 # Deterministic hash-based pseudo-random floats in [-1, 1]
-                h = hashlib.blake2b(text.encode('utf-8'), digest_size=16).digest()
+                h = hashlib.blake2b(text.encode("utf-8"), digest_size=16).digest()
                 # Expand hash into floats
                 vals: List[float] = []
-                i = 0
                 while len(vals) < self.DIMENSION:
                     # Re-hash to get more entropy
                     h = hashlib.blake2b(h, digest_size=16).digest()
@@ -214,7 +220,7 @@ class EmbeddingGenerator:
                 text,
                 convert_to_numpy=True,
                 normalize_embeddings=normalize,
-                show_progress_bar=False
+                show_progress_bar=False,
             )
 
             # Convertir a lista de floats nativos de Python (compatible con pgvector)
@@ -226,29 +232,33 @@ class EmbeddingGenerator:
                     f"Dimensión incorrecta: esperado {self.DIMENSION}, obtenido {len(embedding_list)}"
                 )
 
-            logger.debug(f"✅ Embedding generado exitosamente: {self.DIMENSION} dimensiones")
+            logger.debug(
+                f"✅ Embedding generado exitosamente: {self.DIMENSION} dimensiones"
+            )
 
             return embedding_list
 
         except Exception as e:
             logger.error(f"❌ Error al generar embedding: {e}")
             raise RuntimeError(f"Error al generar embedding: {e}") from e
-    
-    def encode_batch(self, texts: List[str], normalize: bool = True) -> List[List[float]]:
+
+    def encode_batch(
+        self, texts: List[str], normalize: bool = True
+    ) -> List[List[float]]:
         """
         Convierte múltiples textos en embeddings de forma eficiente (batch processing).
-        
+
         Args:
             texts: Lista de textos a convertir
             normalize: Si True, normaliza los vectores
-            
+
         Returns:
             Lista de embeddings (cada uno es una lista de 384 floats)
-            
+
         Raises:
             ValueError: Si texts está vacío o no es una lista
             RuntimeError: Si ocurre un error durante la generación
-            
+
         Examples:
             >>> generator = EmbeddingGenerator()
             >>> texts = ["Ley aprobada", "Sentencia dictada"]
@@ -260,23 +270,25 @@ class EmbeddingGenerator:
         """
         if not texts or not isinstance(texts, list):
             raise ValueError("texts debe ser una lista no vacía")
-        
+
         # Validar y truncar cada texto
         cleaned_texts = []
         for i, text in enumerate(texts):
             if not text or not isinstance(text, str):
                 logger.warning(f"Texto {i} inválido, omitiendo")
                 continue
-            
+
             text = text.strip()
             if text:
                 cleaned_texts.append(self._smart_truncate(text))
-        
+
         if not cleaned_texts:
             raise ValueError("No hay textos válidos para procesar")
-        
+
         try:
-            logger.info(f"Generando embeddings para {len(cleaned_texts)} textos en batch")
+            logger.info(
+                f"Generando embeddings para {len(cleaned_texts)} textos en batch"
+            )
 
             # If mock mode (CI), generate deterministic vectors per text
             if self._model is None:
@@ -287,15 +299,13 @@ class EmbeddingGenerator:
                 cleaned_texts,
                 convert_to_numpy=True,
                 normalize_embeddings=normalize,
-                show_progress_bar=len(cleaned_texts) > 10,  # Mostrar progreso solo si hay muchos
-                batch_size=32  # Procesar en lotes de 32
+                show_progress_bar=len(cleaned_texts)
+                > 10,  # Mostrar progreso solo si hay muchos
+                batch_size=32,  # Procesar en lotes de 32
             )
 
             # Convertir a lista de listas de floats
-            embeddings_list = [
-                row.astype(float).tolist()
-                for row in embeddings_array
-            ]
+            embeddings_list = [row.astype(float).tolist() for row in embeddings_array]
 
             logger.info(f"✅ {len(embeddings_list)} embeddings generados exitosamente")
 
@@ -304,20 +314,20 @@ class EmbeddingGenerator:
         except Exception as e:
             logger.error(f"❌ Error al generar embeddings en batch: {e}")
             raise RuntimeError(f"Error al generar embeddings en batch: {e}") from e
-    
+
     def get_model_info(self) -> dict:
         """
         Retorna información sobre el modelo cargado.
-        
+
         Returns:
             Diccionario con información del modelo
         """
         return {
-            'model_name': self.MODEL_NAME,
-            'max_tokens': self.MAX_TOKENS,
-            'dimension': self.DIMENSION,
-            'initialized': self._initialized,
-            'max_seq_length': self._model.max_seq_length if self._model else None,
+            "model_name": self.MODEL_NAME,
+            "max_tokens": self.MAX_TOKENS,
+            "dimension": self.DIMENSION,
+            "initialized": self._initialized,
+            "max_seq_length": self._model.max_seq_length if self._model else None,
         }
 
 
@@ -325,13 +335,13 @@ class EmbeddingGenerator:
 def generate_embedding(text: str) -> List[float]:
     """
     Función auxiliar para generar un embedding de forma directa.
-    
+
     Args:
         text: Texto a convertir en embedding
-        
+
     Returns:
         Lista de 384 floats
-        
+
     Examples:
         >>> from services.embedding_service import generate_embedding
         >>> embedding = generate_embedding("Ejemplo de texto")
@@ -340,4 +350,6 @@ def generate_embedding(text: str) -> List[float]:
     """
     generator = EmbeddingGenerator()
     return generator.encode(text)
+
+
 # end of module

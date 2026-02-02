@@ -4,25 +4,33 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0015_article_content_hash'),
+        ("core", "0015_article_content_hash"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='article',
-            name='relevance_score',
-            field=models.FloatField(default=0.0, help_text='Score de relevancia calculado (0-100)'),
+            model_name="article",
+            name="relevance_score",
+            field=models.FloatField(
+                default=0.0, help_text="Score de relevancia calculado (0-100)"
+            ),
         ),
         migrations.AddField(
-            model_name='newspreset',
-            name='fields_to_analyze',
-            field=models.CharField(default='title,description', help_text='Campos a analizar separados por coma: title, description', max_length=100),
+            model_name="newspreset",
+            name="fields_to_analyze",
+            field=models.CharField(
+                default="title,description",
+                help_text="Campos a analizar separados por coma: title, description",
+                max_length=100,
+            ),
         ),
         migrations.AddField(
-            model_name='newspreset',
-            name='threshold',
-            field=models.IntegerField(default=30, help_text='Score mínimo de relevancia (0-100) para incluir artículo'),
+            model_name="newspreset",
+            name="threshold",
+            field=models.IntegerField(
+                default=30,
+                help_text="Score mínimo de relevancia (0-100) para incluir artículo",
+            ),
         ),
     ]

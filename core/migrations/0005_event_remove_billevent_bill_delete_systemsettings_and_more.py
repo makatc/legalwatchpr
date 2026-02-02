@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0004_alter_systemsettings_options_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

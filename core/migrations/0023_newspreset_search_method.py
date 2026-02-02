@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0022_add_search_vector_trigger'),
+        ("core", "0022_add_search_vector_trigger"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='newspreset',
-            name='search_method',
-            field=models.CharField(choices=[('hybrid', 'Búsqueda Híbrida (RRF)'), ('semantic', 'Búsqueda Semántica (IA)'), ('keyword', 'Búsqueda por Palabras Clave')], default='hybrid', help_text='Método de búsqueda: híbrida (RRF), semántica (IA) o por palabras clave', max_length=20),
+            model_name="newspreset",
+            name="search_method",
+            field=models.CharField(
+                choices=[
+                    ("hybrid", "Búsqueda Híbrida (RRF)"),
+                    ("semantic", "Búsqueda Semántica (IA)"),
+                    ("keyword", "Búsqueda por Palabras Clave"),
+                ],
+                default="hybrid",
+                help_text="Método de búsqueda: híbrida (RRF), semántica (IA) o por palabras clave",
+                max_length=20,
+            ),
         ),
     ]

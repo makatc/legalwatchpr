@@ -1,10 +1,13 @@
-import feedparser
 import logging
-from django.utils import timezone
 from email.utils import parsedate_to_datetime
+
+import feedparser
+from django.utils import timezone
+
 from core.models import Article, NewsSource
 
 logger = logging.getLogger(__name__)
+
 
 def parse_date(date_str):
     """
@@ -25,6 +28,7 @@ def parse_date(date_str):
         pass
     return timezone.now()
 
+
 def sync_all_rss_sources(max_entries=10, clean_first=False):
     """
     Descarga noticias de todas las fuentes activas.
@@ -32,7 +36,7 @@ def sync_all_rss_sources(max_entries=10, clean_first=False):
     """
     sources = NewsSource.objects.filter(is_active=True)
     total_created = 0
-    
+
     print(f"\n--- 📡 SINCRONIZACIÓN RSS ({len(sources)} fuentes) ---")
 
     for source in sources:
@@ -41,29 +45,30 @@ def sync_all_rss_sources(max_entries=10, clean_first=False):
             # Ignoramos bozo_exception si logramos sacar entradas
             entries = feed.entries[:max_entries]
             created_count = 0
-            
+
             for entry in entries:
-                link = entry.get('link', '')
-                if not link: continue
+                link = entry.get("link", "")
+                if not link:
+                    continue
 
                 # Deduplicación por URL
                 if Article.objects.filter(link=link).exists():
                     continue
-                
-                title = entry.get('title', '')[:500]
-                snippet = entry.get('summary', '') or entry.get('description', '')
-                published_at = parse_date(entry.get('published', entry.get('updated')))
-                
+
+                title = entry.get("title", "")[:500]
+                snippet = entry.get("summary", "") or entry.get("description", "")
+                published_at = parse_date(entry.get("published", entry.get("updated")))
+
                 Article.objects.create(
                     title=title,
                     link=link,
                     snippet=snippet,
                     published_at=published_at,
                     source=source,
-                    search_vector=None # Se llenará con el trigger de DB
+                    search_vector=None,  # Se llenará con el trigger de DB
                 )
                 created_count += 1
-            
+
             if created_count > 0:
                 print(f"   ✅ {source.name}: +{created_count} noticias")
             total_created += created_count

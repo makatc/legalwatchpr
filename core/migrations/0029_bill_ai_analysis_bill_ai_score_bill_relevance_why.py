@@ -4,25 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0028_readd_article_embedding'),
+        ("core", "0028_readd_article_embedding"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='bill',
-            name='ai_analysis',
+            model_name="bill",
+            name="ai_analysis",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='bill',
-            name='ai_score',
+            model_name="bill",
+            name="ai_score",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='bill',
-            name='relevance_why',
+            model_name="bill",
+            name="relevance_why",
             field=models.CharField(blank=True, max_length=500),
         ),
     ]

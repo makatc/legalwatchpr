@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main, refactor/safe-structure ]
+    branches: [ main ]
   push:
-    branches: [ main, refactor/safe-structure ]
+    branches: [ main ]
 
 jobs:
   test:
